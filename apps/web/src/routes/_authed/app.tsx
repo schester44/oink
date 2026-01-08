@@ -1,7 +1,7 @@
 import { createFileRoute, useSearch } from "@tanstack/react-router";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
-import { useRef, useEffect, useState, useMemo } from "react";
+import { useRef, useEffect, useState } from "react";
 import { Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -31,22 +31,24 @@ function AppPage() {
   );
   const [input, setInput] = useState("");
 
-  // Create transport with sessionId in body
-  const transport = useMemo(
-    () =>
-      new DefaultChatTransport({
-        api: "/api/chat",
-        body: { sessionId },
-      }),
-    [sessionId],
-  );
-
   const { messages, sendMessage, status, setMessages } = useChat({
     id: sessionId,
-    transport,
-    onFinish: () => {
-      // Could handle session ID updates here
-    },
+    transport: new DefaultChatTransport({
+      api: "/api/chat",
+      body: { sessionId },
+      fetch: async (url, options) => {
+        const response = await fetch(url, options);
+
+        // Extract session ID from response headers and update URL
+        const newSessionId = response.headers.get("X-Session-Id");
+        if (newSessionId && newSessionId !== sessionId) {
+          setSessionId(newSessionId);
+          window.history.replaceState({}, "", `/app?session=${newSessionId}`);
+        }
+
+        return response;
+      },
+    }),
   });
 
   const scrollRef = useRef<HTMLDivElement>(null);
