@@ -9,12 +9,15 @@ export const APIRoute = createAPIFileRoute("/api/chat")({
     const { messages, sessionId }: { messages: Message[]; sessionId?: string } =
       await request.json();
 
-    const session = new SessionManager(sessionId);
+    // Normalize sessionId - treat empty strings and "undefined" as undefined
+    const normalizedSessionId =
+      sessionId && sessionId !== "undefined" ? sessionId : undefined;
+    const session = new SessionManager(normalizedSessionId);
     const systemPrompt = buildSystemPrompt();
 
     // Get the last user message to persist
     const lastUserMessage = messages.filter((m) => m.role === "user").pop();
-    if (lastUserMessage) {
+    if (lastUserMessage?.content) {
       session.appendMessage("user", lastUserMessage.content);
     }
 

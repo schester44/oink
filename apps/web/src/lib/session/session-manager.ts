@@ -83,9 +83,16 @@ export class SessionManager {
       throw new Error(`Session not found: ${sessionId}`);
     }
 
-    const lines = readFileSync(filePath, "utf-8")
-      .trim()
+    const fileContent = readFileSync(filePath, "utf-8");
+    const trimmedContent = fileContent?.trim() ?? "";
+
+    if (!trimmedContent) {
+      throw new Error(`Session file is empty: ${sessionId}`);
+    }
+
+    const lines = trimmedContent
       .split("\n")
+      .filter((line) => line.length > 0)
       .map((line) => JSON.parse(line) as SessionLine);
 
     // Find the leaf (last message in the chain)
@@ -146,8 +153,14 @@ export class SessionManager {
       return [];
     }
 
-    const lines = readFileSync(this.state.filePath, "utf-8")
-      .trim()
+    const fileContent = readFileSync(this.state.filePath, "utf-8");
+    const trimmedContent = fileContent?.trim() ?? "";
+
+    if (!trimmedContent) {
+      return [];
+    }
+
+    const lines = trimmedContent
       .split("\n")
       .filter((line) => line.length > 0)
       .map((line) => JSON.parse(line) as SessionLine);
@@ -167,15 +180,22 @@ export class SessionManager {
     return files
       .filter((f: string) => f.endsWith(".jsonl"))
       .map((f: string) => {
-        const filePath = join(SESSIONS_DIR, f);
-        const firstLine = readFileSync(filePath, "utf-8").split("\n")[0] ?? "";
-        const session = JSON.parse(firstLine) as SessionEvent;
-        return {
-          id: session.id,
-          title: session.title,
-          timestamp: session.timestamp,
-        };
+        try {
+          const filePath = join(SESSIONS_DIR, f);
+          const fileContent = readFileSync(filePath, "utf-8");
+          const firstLine = fileContent?.split("\n")[0]?.trim();
+          if (!firstLine) return null;
+          const session = JSON.parse(firstLine) as SessionEvent;
+          return {
+            id: session.id,
+            title: session.title,
+            timestamp: session.timestamp,
+          };
+        } catch {
+          return null;
+        }
       })
+      .filter((s): s is NonNullable<typeof s> => s !== null)
       .sort((a, b) => b.timestamp.localeCompare(a.timestamp));
   }
 }
