@@ -11,33 +11,31 @@ export const Route = createFileRoute("/_authed/app")({
   }),
 });
 
+// Helper to extract text content from message parts
+function getMessageText(message: { parts?: Array<{ type: string; text?: string }> }): string {
+  if (!message.parts) return "";
+  return message.parts
+    .filter((part) => part.type === "text")
+    .map((part) => part.text || "")
+    .join("");
+}
+
 function AppPage() {
   const { session: initialSessionId } = useSearch({ from: "/_authed/app" });
   const [sessionId, setSessionId] = useState<string | undefined>(
     initialSessionId,
   );
+  const [input, setInput] = useState("");
 
-  const {
-    messages,
-    input,
-    handleInputChange,
-    handleSubmit,
-    isLoading,
-    setMessages,
-  } = useChat({
-    api: "/api/chat",
-    body: { sessionId },
-    onResponse: (response) => {
-      const newSessionId = response.headers.get("X-Session-Id");
-      if (newSessionId && !sessionId) {
-        setSessionId(newSessionId);
-        // Update URL without navigation
-        window.history.replaceState({}, "", `/app?session=${newSessionId}`);
-      }
+  const { messages, sendMessage, status, setMessages } = useChat({
+    id: sessionId,
+    onFinish: () => {
+      // Session ID is set via the API response - we could fetch it here if needed
     },
   });
 
   const scrollRef = useRef<HTMLDivElement>(null);
+  const isLoading = status === "streaming" || status === "submitted";
 
   // Load existing session messages
   useEffect(() => {
@@ -46,7 +44,13 @@ function AppPage() {
         .then((res) => res.json())
         .then((data) => {
           if (data.messages) {
-            setMessages(data.messages);
+            // Convert loaded messages to UI message format
+            const uiMessages = data.messages.map((m: { id: string; role: string; content: string }) => ({
+              id: m.id,
+              role: m.role as "user" | "assistant" | "system",
+              parts: [{ type: "text" as const, text: m.content }],
+            }));
+            setMessages(uiMessages);
           }
         })
         .catch(console.error);
@@ -62,7 +66,20 @@ function AppPage() {
   const startNewSession = () => {
     setSessionId(undefined);
     setMessages([]);
+    setInput("");
     window.history.replaceState({}, "", "/app");
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (input.trim() && !isLoading) {
+      const messageText = input;
+      setInput("");
+
+      await sendMessage({
+        text: messageText,
+      });
+    }
   };
 
   return (
@@ -107,7 +124,7 @@ function AppPage() {
                       }`}
                     >
                       <p className="text-sm whitespace-pre-wrap">
-                        {message.content}
+                        {getMessageText(message)}
                       </p>
                     </div>
                   </div>
@@ -145,7 +162,7 @@ function AppPage() {
               <input
                 type="text"
                 value={input}
-                onChange={handleInputChange}
+                onChange={(e) => setInput(e.target.value)}
                 placeholder="Type a message..."
                 disabled={isLoading}
                 className="flex-1 rounded-md border bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"

@@ -1,9 +1,13 @@
-import { createAPIFileRoute } from "@tanstack/react-start/api";
+import { createFileRoute } from "@tanstack/react-router";
 import { SessionManager } from "../../../lib/session";
 
-export const APIRoute = createAPIFileRoute("/api/sessions")({
-  GET: async () => {
-    const sessions = SessionManager.listSessions();
-    return Response.json(sessions);
+export const Route = createFileRoute("/api/sessions/")({
+  server: {
+    handlers: {
+      GET: async () => {
+        const sessions = SessionManager.listSessions();
+        return Response.json(sessions);
+      },
+    },
   },
 });
