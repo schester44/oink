@@ -11,6 +11,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "^3.0.9",
+    "@ai-sdk/react": "^3.0.19",
     "@hookform/resolvers": "^3",
     "@radix-ui/react-slot": "^1",
     "@tailwindcss/vite": "^4",
@@ -22,6 +24,7 @@
     "@tanstack/react-start": "^1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "ai": "^6.0.19",
     "class-variance-authority": "^0.7",
     "clsx": "^2",
     "lucide-react": "^0.468",
