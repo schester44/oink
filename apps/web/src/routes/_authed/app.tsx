@@ -1,6 +1,7 @@
 import { createFileRoute, useSearch } from "@tanstack/react-router";
 import { useChat } from "@ai-sdk/react";
-import { useRef, useEffect, useState } from "react";
+import { DefaultChatTransport } from "ai";
+import { useRef, useEffect, useState, useMemo } from "react";
 import { Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -12,8 +13,11 @@ export const Route = createFileRoute("/_authed/app")({
 });
 
 // Helper to extract text content from message parts
-function getMessageText(message: { parts?: Array<{ type: string; text?: string }> }): string {
+function getMessageText(message: {
+  parts?: Array<{ type: string; text?: string }>;
+}): string {
   if (!message.parts) return "";
+
   return message.parts
     .filter((part) => part.type === "text")
     .map((part) => part.text || "")
@@ -27,10 +31,21 @@ function AppPage() {
   );
   const [input, setInput] = useState("");
 
+  // Create transport with sessionId in body
+  const transport = useMemo(
+    () =>
+      new DefaultChatTransport({
+        api: "/api/chat",
+        body: { sessionId },
+      }),
+    [sessionId],
+  );
+
   const { messages, sendMessage, status, setMessages } = useChat({
     id: sessionId,
+    transport,
     onFinish: () => {
-      // Session ID is set via the API response - we could fetch it here if needed
+      // Could handle session ID updates here
     },
   });
 
@@ -45,11 +60,13 @@ function AppPage() {
         .then((data) => {
           if (data.messages) {
             // Convert loaded messages to UI message format
-            const uiMessages = data.messages.map((m: { id: string; role: string; content: string }) => ({
-              id: m.id,
-              role: m.role as "user" | "assistant" | "system",
-              parts: [{ type: "text" as const, text: m.content }],
-            }));
+            const uiMessages = data.messages.map(
+              (m: { id: string; role: string; content: string }) => ({
+                id: m.id,
+                role: m.role as "user" | "assistant" | "system",
+                parts: [{ type: "text" as const, text: m.content }],
+              }),
+            );
             setMessages(uiMessages);
           }
         })
