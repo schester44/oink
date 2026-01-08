@@ -18,6 +18,8 @@
 **/.nitro/
 **/.turbo/
 
+
+
 # misc
 .DS_Store
 *.pem
@@ -41,4 +43,4 @@ yarn-error.log*
 # logs
 /logs
 *.log
-data/sessions/
+**/data/sessions/

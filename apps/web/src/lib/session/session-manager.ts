@@ -12,6 +12,7 @@ import type {
   MessageEvent,
   ModelChangeEvent,
   MessageRole,
+  MessagePart,
   SessionState,
 } from "./types";
 
@@ -42,6 +43,7 @@ export class SessionManager {
 
   private ensureDir(filePath: string): void {
     const dir = dirname(filePath);
+
     if (!existsSync(dir)) {
       mkdirSync(dir, { recursive: true });
     }
@@ -52,21 +54,21 @@ export class SessionManager {
     appendFileSync(this.state.filePath, JSON.stringify(line) + "\n");
   }
 
-  private createSession(title?: string): SessionState {
-    const sessionId = generateId();
-    const filePath = join(SESSIONS_DIR, `${sessionId}.jsonl`);
+  private createSession(sessionId?: string, title?: string): SessionState {
+    const id = sessionId || generateId();
+    const filePath = join(SESSIONS_DIR, `${id}.jsonl`);
 
     const sessionEvent: SessionEvent = {
       type: "session",
-      id: sessionId,
+      id,
       timestamp: timestamp(),
       cwd: getCwd(),
       title,
     };
 
     const state: SessionState = {
-      sessionId,
-      leafId: sessionId,
+      sessionId: id,
+      leafId: id,
       filePath,
     };
 
@@ -80,7 +82,8 @@ export class SessionManager {
     const filePath = join(SESSIONS_DIR, `${sessionId}.jsonl`);
 
     if (!existsSync(filePath)) {
-      throw new Error(`Session not found: ${sessionId}`);
+      // Create session with the given ID if it doesn't exist
+      return this.createSession(sessionId);
     }
 
     const fileContent = readFileSync(filePath, "utf-8");
@@ -123,6 +126,23 @@ export class SessionManager {
       parentId: this.state.leafId,
       role,
       content,
+    };
+
+    this.appendLine(event);
+    this.state.leafId = event.id;
+
+    return event;
+  }
+
+  appendStructuredMessage(role: MessageRole, parts: MessagePart[]): MessageEvent {
+    const event: MessageEvent = {
+      type: "message",
+      id: generateId(),
+      timestamp: timestamp(),
+      cwd: getCwd(),
+      parentId: this.state.leafId,
+      role,
+      parts,
     };
 
     this.appendLine(event);
@@ -186,6 +206,7 @@ export class SessionManager {
           const firstLine = fileContent?.split("\n")[0]?.trim();
           if (!firstLine) return null;
           const session = JSON.parse(firstLine) as SessionEvent;
+
           return {
             id: session.id,
             title: session.title,

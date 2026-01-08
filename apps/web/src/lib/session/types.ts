@@ -6,6 +6,27 @@ export type SessionEventType =
 
 export type MessageRole = "user" | "assistant" | "system";
 
+// Message part types matching AI SDK UI message format
+export interface TextPart {
+  type: "text";
+  text: string;
+}
+
+export interface ToolCallPart {
+  type: "tool-call";
+  toolCallId: string;
+  toolName: string;
+  input: unknown;
+  output?: unknown;
+  state?: "pending" | "output-available" | "error";
+}
+
+export interface StepStartPart {
+  type: "step-start";
+}
+
+export type MessagePart = TextPart | ToolCallPart | StepStartPart;
+
 export interface BaseSessionEvent {
   type: SessionEventType;
   id: string;
@@ -22,7 +43,8 @@ export interface SessionEvent extends BaseSessionEvent {
 export interface MessageEvent extends BaseSessionEvent {
   type: "message";
   role: MessageRole;
-  content: string;
+  content?: string; // Legacy simple text content
+  parts?: MessagePart[]; // Structured parts (preferred)
 }
 
 export interface ModelChangeEvent extends BaseSessionEvent {
