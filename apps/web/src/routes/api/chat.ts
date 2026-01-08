@@ -1,8 +1,19 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { anthropic } from "@ai-sdk/anthropic";
-import { streamText } from "ai";
+import { streamText, convertToModelMessages } from "ai";
 import { buildSystemPrompt } from "../../lib/prompts";
 import { SessionManager } from "../../lib/session";
+
+// Helper to extract text from UI message parts
+function getTextFromParts(
+  parts?: Array<{ type: string; text?: string }>,
+): string {
+  if (!parts) return "";
+  return parts
+    .filter((p) => p.type === "text")
+    .map((p) => p.text || "")
+    .join("");
+}
 
 export const Route = createFileRoute("/api/chat")({
   server: {
@@ -20,14 +31,21 @@ export const Route = createFileRoute("/api/chat")({
         const lastUserMessage = messages
           .filter((m: { role: string }) => m.role === "user")
           .pop();
-        if (lastUserMessage?.content) {
-          session.appendMessage("user", lastUserMessage.content);
+
+        if (lastUserMessage) {
+          const textContent = getTextFromParts(lastUserMessage.parts);
+          if (textContent) {
+            session.appendMessage("user", textContent);
+          }
         }
+
+        // Convert UI messages to model messages for streamText
+        const modelMessages = await convertToModelMessages(messages);
 
         const result = streamText({
           model: anthropic("claude-sonnet-4-20250514"),
           system: systemPrompt,
-          messages,
+          messages: modelMessages,
           onFinish: async ({ text }) => {
             // Persist assistant response after streaming completes
             session.appendMessage("assistant", text);
