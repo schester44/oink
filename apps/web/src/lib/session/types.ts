@@ -1,4 +1,8 @@
-export type SessionEventType = "session" | "message" | "model_change" | "compaction";
+export type SessionEventType =
+  | "session"
+  | "message"
+  | "model_change"
+  | "compaction";
 
 export type MessageRole = "user" | "assistant" | "system";
 
@@ -33,7 +37,11 @@ export interface CompactionEvent extends BaseSessionEvent {
   summary: string;
 }
 
-export type SessionLine = SessionEvent | MessageEvent | ModelChangeEvent | CompactionEvent;
+export type SessionLine =
+  | SessionEvent
+  | MessageEvent
+  | ModelChangeEvent
+  | CompactionEvent;
 
 export interface SessionState {
   sessionId: string;

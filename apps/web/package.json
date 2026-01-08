@@ -1,0 +1,45 @@
+{
+  "name": "@oink/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite dev",
+    "build": "vite build",
+    "start": "node ./.output/server/index.mjs",
+    "lint": "eslint src/",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@hookform/resolvers": "^3",
+    "@radix-ui/react-slot": "^1",
+    "@tailwindcss/vite": "^4",
+    "@tanstack/devtools-vite": "^0.3",
+    "@tanstack/react-devtools": "^0.8",
+    "@tanstack/react-query": "^5",
+    "@tanstack/react-router": "^1",
+    "@tanstack/react-router-devtools": "^1",
+    "@tanstack/react-start": "^1",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "class-variance-authority": "^0.7",
+    "clsx": "^2",
+    "lucide-react": "^0.468",
+    "pino": "^9",
+    "pino-pretty": "^13",
+    "react": "^19",
+    "react-dom": "^19",
+    "react-hook-form": "^7",
+    "sonner": "^2",
+    "tailwind-merge": "^2",
+    "zod": "^3"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4",
+    "tailwindcss": "^4",
+    "tw-animate-css": "^1",
+    "typescript": "^5",
+    "vite": "^7",
+    "vite-tsconfig-paths": "^5"
+  }
+}

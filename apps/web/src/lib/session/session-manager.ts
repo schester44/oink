@@ -1,4 +1,10 @@
-import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync } from "fs";
+import {
+  appendFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+} from "fs";
 import { join, dirname } from "path";
 import type {
   SessionLine,
@@ -146,7 +152,9 @@ export class SessionManager {
       .filter((line) => line.length > 0)
       .map((line) => JSON.parse(line) as SessionLine);
 
-    return lines.filter((line): line is MessageEvent => line.type === "message");
+    return lines.filter(
+      (line): line is MessageEvent => line.type === "message",
+    );
   }
 
   static listSessions(): { id: string; title?: string; timestamp: string }[] {
