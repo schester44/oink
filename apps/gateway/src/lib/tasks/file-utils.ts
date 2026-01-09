@@ -112,3 +112,41 @@ export function listInstances(): string[] {
     .filter((d) => d.isDirectory())
     .map((d) => d.name);
 }
+
+export interface CreateTaskInput {
+  instance?: string;
+  name: string;
+  description?: string;
+  schedule: Task["schedule"];
+  execution: Task["execution"];
+  channels?: string[];
+  createdBy?: string;
+}
+
+export function createTask(input: CreateTaskInput): Task {
+  const id = generateTaskId();
+  const instance = input.instance || config.defaultInstance;
+
+  const task: Task = {
+    id,
+    instance,
+    name: input.name,
+    description: input.description || "",
+    schedule: input.schedule,
+    execution: input.execution,
+    notifications: {
+      channels: input.channels || ["websocket"],
+      priority: "normal",
+    },
+    metadata: {
+      createdAt: new Date().toISOString(),
+      createdBy: input.createdBy || "api",
+      lastRun: null,
+      runCount: 0,
+      lastError: null,
+    },
+  };
+
+  saveTask(task);
+  return task;
+}
