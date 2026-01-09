@@ -8,7 +8,7 @@ async function startGateway() {
   logger.info("Starting Oink Gateway");
 
   // Start WebSocket server
-  startWebSocketServer();
+  await startWebSocketServer();
 
   // Start scheduler
   await startScheduler();

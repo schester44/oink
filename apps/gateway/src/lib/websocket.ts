@@ -9,42 +9,49 @@ import { logger } from "./logger.js";
 let httpServer: ReturnType<typeof createServer> | null = null;
 let io: SocketServer | null = null;
 
-export function startWebSocketServer(): void {
-  httpServer = createServer();
+export function startWebSocketServer(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    httpServer = createServer();
 
-  io = new SocketServer(httpServer, {
-    cors: {
-      origin: "*", // Configure appropriately for production
-      methods: ["GET", "POST"],
-    },
-  });
-
-  setSocketServer(io);
-
-  io.on("connection", (socket) => {
-    const instance = (socket.handshake.query.instance as string) || config.defaultInstance;
-
-    registerClient(socket.id, instance);
-
-    socket.on("disconnect", () => {
-      unregisterClient(socket.id);
+    io = new SocketServer(httpServer, {
+      cors: {
+        origin: "*", // Configure appropriately for production
+        methods: ["GET", "POST"],
+      },
     });
 
-    // Allow clients to switch instances
-    socket.on("switch-instance", (newInstance: string) => {
-      unregisterClient(socket.id);
-      registerClient(socket.id, newInstance);
-      socket.emit("instance-switched", { instance: newInstance });
+    setSocketServer(io);
+
+    io.on("connection", (socket) => {
+      const instance = (socket.handshake.query.instance as string) || config.defaultInstance;
+
+      registerClient(socket.id, instance);
+
+      socket.on("disconnect", () => {
+        unregisterClient(socket.id);
+      });
+
+      // Allow clients to switch instances
+      socket.on("switch-instance", (newInstance: string) => {
+        unregisterClient(socket.id);
+        registerClient(socket.id, newInstance);
+        socket.emit("instance-switched", { instance: newInstance });
+      });
+
+      // Ping/pong for connection health
+      socket.on("ping", () => {
+        socket.emit("pong", { timestamp: Date.now() });
+      });
     });
 
-    // Ping/pong for connection health
-    socket.on("ping", () => {
-      socket.emit("pong", { timestamp: Date.now() });
+    httpServer.on("error", (error) => {
+      reject(error);
     });
-  });
 
-  httpServer.listen(config.wsPort, () => {
-    logger.info({ port: config.wsPort }, "WebSocket server started");
+    httpServer.listen(config.wsPort, () => {
+      logger.info({ port: config.wsPort }, "WebSocket server started");
+      resolve();
+    });
   });
 }
 
