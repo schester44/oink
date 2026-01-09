@@ -4,19 +4,18 @@ import {
   mkdirSync,
   readFileSync,
   readdirSync,
+  writeFileSync,
 } from "fs";
 import { join, dirname } from "path";
 import type {
   SessionLine,
   SessionEvent,
   MessageEvent,
-  ModelChangeEvent,
   MessageRole,
-  MessagePart,
   SessionState,
 } from "./types";
 
-const SESSIONS_DIR = join(process.cwd(), "data/sessions");
+const SESSIONS_DIR = join(process.cwd(), "src/brain/sessions");
 
 function generateId(): string {
   return crypto.randomUUID();
@@ -56,7 +55,9 @@ export class SessionManager {
 
   private createSession(sessionId?: string, title?: string): SessionState {
     const id = sessionId || generateId();
-    const filePath = join(SESSIONS_DIR, `${id}.jsonl`);
+    const sessionDir = join(SESSIONS_DIR, id);
+    const filePath = join(sessionDir, "log.jsonl");
+    const metaPath = join(sessionDir, "meta.json");
 
     const sessionEvent: SessionEvent = {
       type: "session",
@@ -75,11 +76,15 @@ export class SessionManager {
     this.state = state;
     this.appendLine(sessionEvent);
 
+    // Write meta.json with session metadata
+    const meta = { name: id };
+    writeFileSync(metaPath, JSON.stringify(meta, null, 2));
+
     return state;
   }
 
   private loadSession(sessionId: string): SessionState {
-    const filePath = join(SESSIONS_DIR, `${sessionId}.jsonl`);
+    const filePath = join(SESSIONS_DIR, sessionId, "log.jsonl");
 
     if (!existsSync(filePath)) {
       // Create session with the given ID if it doesn't exist
@@ -117,7 +122,7 @@ export class SessionManager {
     return this.state.leafId;
   }
 
-  appendMessage(role: MessageRole, content: string): MessageEvent {
+  appendMessage(role: MessageRole, text: string): MessageEvent {
     const event: MessageEvent = {
       type: "message",
       id: generateId(),
@@ -125,7 +130,7 @@ export class SessionManager {
       cwd: getCwd(),
       parentId: this.state.leafId,
       role,
-      content,
+      content: [{ type: "text", text }],
     };
 
     this.appendLine(event);
@@ -134,7 +139,10 @@ export class SessionManager {
     return event;
   }
 
-  appendStructuredMessage(role: MessageRole, parts: MessagePart[]): MessageEvent {
+  appendStructuredMessage(
+    role: MessageRole,
+    parts: UIMessagePart[],
+  ): MessageEvent {
     const event: MessageEvent = {
       type: "message",
       id: generateId(),
@@ -143,23 +151,6 @@ export class SessionManager {
       parentId: this.state.leafId,
       role,
       parts,
-    };
-
-    this.appendLine(event);
-    this.state.leafId = event.id;
-
-    return event;
-  }
-
-  appendModelChange(model: string, previousModel?: string): ModelChangeEvent {
-    const event: ModelChangeEvent = {
-      type: "model_change",
-      id: generateId(),
-      timestamp: timestamp(),
-      cwd: getCwd(),
-      parentId: this.state.leafId,
-      model,
-      previousModel,
     };
 
     this.appendLine(event);
@@ -190,26 +181,48 @@ export class SessionManager {
     );
   }
 
-  static listSessions(): { id: string; title?: string; timestamp: string }[] {
+  updateName(name: string): void {
+    const metaPath = join(SESSIONS_DIR, this.state.sessionId, "meta.json");
+    const meta = { name };
+    writeFileSync(metaPath, JSON.stringify(meta, null, 2));
+  }
+
+  static listSessions(): { id: string; name: string; timestamp: string }[] {
     if (!existsSync(SESSIONS_DIR)) {
       return [];
     }
 
-    const files = readdirSync(SESSIONS_DIR) as string[];
+    const dirs = readdirSync(SESSIONS_DIR, { withFileTypes: true })
+      .filter((d) => d.isDirectory())
+      .map((d) => d.name);
 
-    return files
-      .filter((f: string) => f.endsWith(".jsonl"))
-      .map((f: string) => {
+    return dirs
+      .map((dir: string) => {
         try {
-          const filePath = join(SESSIONS_DIR, f);
-          const fileContent = readFileSync(filePath, "utf-8");
-          const firstLine = fileContent?.split("\n")[0]?.trim();
+          const sessionDir = join(SESSIONS_DIR, dir);
+          const metaPath = join(sessionDir, "meta.json");
+          const logPath = join(sessionDir, "log.jsonl");
+
+          if (!existsSync(logPath)) return null;
+
+          // Get name from meta.json
+          let name = dir;
+
+          if (existsSync(metaPath)) {
+            const metaContent = readFileSync(metaPath, "utf-8");
+            const meta = JSON.parse(metaContent) as { name: string };
+            name = meta.name || dir;
+          }
+
+          // Get timestamp from first line of log.jsonl
+          const logContent = readFileSync(logPath, "utf-8");
+          const firstLine = logContent?.split("\n")[0]?.trim();
           if (!firstLine) return null;
           const session = JSON.parse(firstLine) as SessionEvent;
 
           return {
-            id: session.id,
-            title: session.title,
+            id: dir,
+            name,
             timestamp: session.timestamp,
           };
         } catch {

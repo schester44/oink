@@ -43,4 +43,4 @@ yarn-error.log*
 # logs
 /logs
 *.log
-**/data/sessions/
+**/brain/

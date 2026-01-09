@@ -1,18 +1,9 @@
-import { readFileSync, existsSync } from "fs";
+import { readFileSync, existsSync, readdirSync } from "fs";
 import { join } from "path";
+import matter from "gray-matter";
 
 import { config } from "./config";
-
-function stripFrontMatter(content: string): string {
-  if (!content.startsWith("---")) return content;
-  const endIndex = content.indexOf("\n---", 3);
-  if (endIndex === -1) return content;
-  const start = endIndex + "\n---".length;
-  let trimmed = content.slice(start);
-  trimmed = trimmed.replace(/^\s+/, "");
-
-  return trimmed;
-}
+import { formatSkillsForPrompt } from "./agent/skills";
 
 function loadTemplate(filename: string, workspaceDir: string) {
   const path = join(workspaceDir, filename);
@@ -20,12 +11,47 @@ function loadTemplate(filename: string, workspaceDir: string) {
   if (!existsSync(path)) return null;
 
   try {
-    const content = readFileSync(path, "utf-8");
+    const contents = readFileSync(path, "utf-8");
+    const { content, data } = matter(contents);
 
-    return { content: stripFrontMatter(content), path };
+    return { content, path, frontmatter: data };
   } catch (error) {
     console.error(`Error loading template ${filename}:`, error);
   }
+}
+
+function loadSkills(workspaceDir: string) {
+  const skillsDir = join(workspaceDir, "skills");
+
+  if (!existsSync(skillsDir)) return [];
+
+  const skillFiles = readdirSync(skillsDir).filter((file: string) =>
+    file.endsWith(".md"),
+  );
+
+  const skills = skillFiles
+    .map((file: string) => {
+      const path = join(skillsDir, file);
+      const contents = readFileSync(path, "utf-8");
+      const { content, data } = matter(contents);
+
+      if (!data.name || !data.description) return null;
+
+      return {
+        content,
+        path,
+        name: data.name || file.replace(".md", ""),
+        description: data.description || "",
+      };
+    })
+    .filter((skill) => skill !== null) as {
+    content: string;
+    path: string;
+    name: string;
+    description: string;
+  }[];
+
+  return skills;
 }
 
 interface BuildSystemPromptOptions {
@@ -38,6 +64,7 @@ export function buildSystemPrompt(opts: BuildSystemPromptOptions = {}): string {
   const identity = loadTemplate("IDENTITY.md", workspaceDir);
   const user = loadTemplate("USER.md", workspaceDir);
   const bootstrap = loadTemplate("BOOTSTRAP.md", workspaceDir);
+  const skills = loadSkills(workspaceDir);
 
   const parts: string[] = [];
 
@@ -57,7 +84,16 @@ export function buildSystemPrompt(opts: BuildSystemPromptOptions = {}): string {
     parts.push(user.content);
   }
 
+  if (skills.length > 0) {
+    parts.push(formatSkillsForPrompt(skills));
+  }
+
   parts.push(`
+
+# Context
+- You have access to previous conversation context including tool results from prior turns.
+- For older history beyond your context, search log.jsonl (contains user messages and your final responses, but not tool results).
+
 # Current Context
 
 - Current time: ${new Date().toISOString()}

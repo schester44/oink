@@ -1,4 +1,5 @@
 import { logger } from "@/lib/logger";
+import { SharedV3ProviderOptions } from "@ai-sdk/provider";
 import { tool } from "ai";
 import { spawn } from "child_process";
 import { z } from "zod";
@@ -8,6 +9,7 @@ const DEFAULT_MAX_BYTES = 50 * 1024; // 50KB
 
 interface FindToolOptions {
   workspaceDir: string;
+  providerOptions?: SharedV3ProviderOptions;
 }
 
 interface FindResult {
@@ -16,8 +18,12 @@ interface FindResult {
   message: string;
 }
 
-export function createFindTool({ workspaceDir }: FindToolOptions) {
+export function createFindTool({
+  workspaceDir,
+  providerOptions,
+}: FindToolOptions) {
   const findTool = tool({
+    providerOptions,
     description: `Search for files by glob pattern in the workspace. Returns matching file paths relative to the search directory. Respects .gitignore. Output is truncated to ${DEFAULT_LIMIT} results or ${DEFAULT_MAX_BYTES / 1024}KB (whichever is hit first).`,
     inputSchema: z.object({
       pattern: z
@@ -41,7 +47,11 @@ export function createFindTool({ workspaceDir }: FindToolOptions) {
       const maxResults = limit ?? DEFAULT_LIMIT;
       const searchPath = path ?? workspaceDir;
 
-      logger.info("Executing findTool with pattern: %s in %s", pattern, searchPath);
+      logger.info(
+        "Executing findTool with pattern: %s in %s",
+        pattern,
+        searchPath,
+      );
 
       // Use fd with glob pattern - respects .gitignore by default
       const args = [

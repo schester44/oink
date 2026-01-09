@@ -6,6 +6,7 @@ export const Route = createFileRoute("/api/sessions/")({
     handlers: {
       GET: async () => {
         const sessions = SessionManager.listSessions();
+
         return Response.json(sessions);
       },
     },

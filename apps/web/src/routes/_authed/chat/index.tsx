@@ -5,117 +5,85 @@ import {
 } from "@tanstack/react-router";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
-import { useRef, useEffect, useState } from "react";
-import { Send } from "lucide-react";
+import { useRef, useState, useEffect } from "react";
+import { Send, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { MessageContent, hasVisibleContent } from "./-components/message-content";
+import {
+  getShowToolCallsServerFn,
+  setShowToolCallsServerFn,
+} from "@/lib/tool-calls";
+import { getSessionsServerFn } from "@/lib/sessions";
 
-export const Route = createFileRoute("/_authed/app")({
-  component: AppPage,
+export const Route = createFileRoute("/_authed/chat/")({
+  component: ChatPage,
   validateSearch: (search) => ({
     sessionId: (search.sessionId as string) || undefined,
   }),
+  loader: async () => {
+    const [showToolCalls, sessions] = await Promise.all([
+      getShowToolCallsServerFn(),
+      getSessionsServerFn(),
+    ]);
+
+    return { showToolCalls, sessions };
+  },
 });
 
-// Helper to extract text content from message parts
-function getMessageText(message: {
-  parts?: Array<{ type: string; text?: string }>;
-}): string {
-  if (!message.parts) return "";
-
-  return message.parts
-    .filter((part) => part.type === "text")
-    .map((part) => part.text || "")
-    .join("");
-}
-
-// Component to render tool call results
-function ToolCallDisplay({ part }: { part: {
-  type: string;
-  toolName?: string;
-  input?: unknown;
-  output?: unknown;
-  state?: string;
-}}) {
-  const toolName = part.toolName || part.type.replace("tool-", "");
-
-  return (
-    <div className="my-2 rounded border border-border bg-muted/50 p-3 text-xs font-mono">
-      <div className="flex items-center gap-2 mb-2">
-        <span className="text-muted-foreground">Tool:</span>
-        <span className="font-semibold">{toolName}</span>
-        {part.state === "output-available" && (
-          <span className="text-green-600 text-xs">✓</span>
-        )}
-      </div>
-      {part.input !== undefined ? (
-        <details className="mb-2">
-          <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
-            Input
-          </summary>
-          <pre className="mt-1 overflow-x-auto whitespace-pre-wrap text-xs">
-            {String(JSON.stringify(part.input, null, 2))}
-          </pre>
-        </details>
-      ) : null}
-      {part.output !== undefined ? (
-        <details open>
-          <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
-            Output
-          </summary>
-          <pre className="mt-1 overflow-x-auto whitespace-pre-wrap text-xs">
-            {String(JSON.stringify(part.output, null, 2))}
-          </pre>
-        </details>
-      ) : null}
-    </div>
-  );
-}
-
-// Render message parts including text and tool calls
-function MessageContent({ message }: { message: { parts?: Array<{ type: string; text?: string; [key: string]: unknown }> } }) {
-  if (!message.parts) return null;
-
-  return (
-    <>
-      {message.parts.map((part, index) => {
-        if (part.type === "text" && part.text) {
-          return (
-            <p key={index} className="text-sm whitespace-pre-wrap">
-              {part.text}
-            </p>
-          );
-        }
-        if (part.type === "tool-call" || part.type.startsWith("tool-")) {
-          return <ToolCallDisplay key={index} part={part} />;
-        }
-        // Skip step-start and other internal parts
-        return null;
-      })}
-    </>
-  );
-}
-
-function AppPage() {
-  const route = getRouteApi("/_authed/app");
+function ChatPage() {
+  const route = getRouteApi("/_authed/chat/");
   const { sessionId: urlSessionId } = route.useSearch();
+  const { showToolCalls: initialShowToolCalls, sessions } =
+    route.useLoaderData();
   const sessionId = urlSessionId || "main";
 
   const navigate = useNavigate();
 
   const [input, setInput] = useState("");
+  const [showToolCalls, setShowToolCalls] = useState(initialShowToolCalls);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+
+  const toggleToolCalls = () => {
+    const next = !showToolCalls;
+    setShowToolCalls(next);
+    setShowToolCallsServerFn({ data: next });
+  };
 
   const { messages, sendMessage, status, setMessages } = useChat({
     id: sessionId,
     transport: new DefaultChatTransport({
       api: "/api/chat",
-      body: { sessionId },
+      prepareSendMessagesRequest({ messages, id }) {
+        return {
+          body: {
+            sessionId,
+            message: messages[messages.length - 1],
+            id,
+          },
+        };
+      },
     }),
   });
 
-  console.log("🪵 messages", messages);
-
   const scrollRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const isLoading = status === "streaming" || status === "submitted";
+
+  // Check if the last assistant message has any text content yet
+  const lastMessage = messages[messages.length - 1];
+  const lastAssistantHasContent =
+    lastMessage?.role === "assistant" &&
+    lastMessage.parts?.some(
+      (p: { type: string; text?: string }) => p.type === "text" && p.text,
+    );
+  const showLoadingIndicator = isLoading && !lastAssistantHasContent;
 
   // Load existing session messages
   useEffect(() => {
@@ -124,19 +92,23 @@ function AppPage() {
         .then((res) => res.json())
         .then((data) => {
           if (data.messages) {
-            // Convert loaded messages to UI message format
+            // Messages are already in UI format with parts
             const uiMessages = data.messages.map(
-              (m: { id: string; role: string; content?: string; parts?: Array<{ type: string; [key: string]: unknown }> }) => ({
+              (m: {
+                id: string;
+                role: string;
+                parts: Array<{ type: string; [key: string]: unknown }>;
+              }) => ({
                 id: m.id,
                 role: m.role as "user" | "assistant" | "system",
-                // Use parts if available, otherwise convert content to parts
-                parts: m.parts || (m.content ? [{ type: "text" as const, text: m.content }] : []),
+                parts: m.parts,
               }),
             );
             setMessages(uiMessages);
           }
         })
-        .catch(console.error);
+        .catch(console.error)
+        .finally(() => setIsInitialLoad(false));
     }
   }, [sessionId, setMessages]);
 
@@ -151,7 +123,7 @@ function AppPage() {
     setInput("");
 
     navigate({
-      to: "/app",
+      to: "/chat",
       search: (s) => ({ ...s, sessionId: crypto.randomUUID() }),
     });
   };
@@ -173,17 +145,49 @@ function AppPage() {
       <header className="flex items-center justify-between border-b px-4 py-3">
         <div className="flex items-center gap-2">
           <span className="text-2xl">🐷</span>
-          <h1 className="text-lg font-semibold">Oink</h1>
+          <h1 className="text-lg font-semibold">Oinko</h1>
         </div>
-        <Button variant="outline" size="sm" onClick={startNewSession}>
-          New Chat
-        </Button>
+        <div className="flex items-center gap-2">
+          <Select
+            value={sessionId}
+            onValueChange={(value) => {
+              setMessages([]);
+
+              navigate({
+                to: "/chat",
+                search: { sessionId: value },
+              });
+            }}
+          >
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="Select session" />
+            </SelectTrigger>
+            <SelectContent>
+              {sessions.map((session) => (
+                <SelectItem key={session.id} value={session.id}>
+                  {session.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button
+            variant={showToolCalls ? "default" : "outline"}
+            size="sm"
+            onClick={toggleToolCalls}
+            title={showToolCalls ? "Hide tool calls" : "Show tool calls"}
+          >
+            <Wrench className="h-4 w-4" />
+          </Button>
+          <Button variant="outline" size="sm" onClick={startNewSession}>
+            New Chat
+          </Button>
+        </div>
       </header>
 
       <main className="flex-1 overflow-hidden">
         <div className="flex h-full flex-col">
           <div ref={scrollRef} className="flex-1 overflow-y-auto p-4">
-            {messages.length === 0 ? (
+            {messages.length === 0 && !isInitialLoad ? (
               <div className="flex h-full flex-col items-center justify-center text-center">
                 <span className="text-6xl mb-4">🐷</span>
                 <h2 className="text-xl font-semibold">Hey there!</h2>
@@ -192,9 +196,11 @@ function AppPage() {
                   or just chat.
                 </p>
               </div>
-            ) : (
+            ) : messages.length > 0 ? (
               <div className="space-y-4 max-w-3xl mx-auto">
-                {messages.map((message) => (
+                {messages
+                  .filter((message) => message.role === "user" || hasVisibleContent(message, showToolCalls))
+                  .map((message) => (
                   <div
                     key={message.id}
                     className={`flex gap-3 ${message.role === "user" ? "flex-row-reverse" : ""}`}
@@ -209,11 +215,14 @@ function AppPage() {
                           : "bg-muted"
                       }`}
                     >
-                      <MessageContent message={message} />
+                      <MessageContent
+                        message={message}
+                        showToolCalls={showToolCalls}
+                      />
                     </div>
                   </div>
                 ))}
-                {isLoading && (
+                {showLoadingIndicator && (
                   <div className="flex gap-3">
                     <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center text-sm">
                       🐷
@@ -238,18 +247,22 @@ function AppPage() {
                   </div>
                 )}
               </div>
+            ) : (
+              <div className="flex h-full items-center justify-center">
+                <span className="text-6xl animate-bounce">🐽</span>
+              </div>
             )}
           </div>
 
           <form onSubmit={handleSubmit} className="border-t p-4">
             <div className="flex gap-2 max-w-3xl mx-auto">
               <input
+                ref={inputRef}
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="Type a message..."
-                disabled={isLoading}
-                className="flex-1 rounded-md border bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                className="flex-1 rounded-md border bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               />
               <Button
                 type="submit"

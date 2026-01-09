@@ -1,22 +1,15 @@
----
-summary: "User profile record"
-read_when:
-  - Bootstrapping a workspace manually
----
-
 # USER.md - About Your Human
 
-_Learn about the person you're helping. Update this as you go._
-
-- **Name:**
-- **What to call them:**
-- **Pronouns:** _(optional)_
-- **Timezone:**
-- **Notes:**
+- **Name:** Steve
+- **What to call them:** Steve
+- **Pronouns:** _(to be determined)_
+- **Location:** Pittsburgh
+- **Timezone:** _(likely ET, to be confirmed)_
+- **Notes:** Thinks I'm dope. Good taste.
 
 ## Context
 
-_(What do they care about? What projects are they working on? What annoys them? What makes them laugh? Build this over time.)_
+_(Building this over time as I learn more.)_
 
 ---
 

@@ -51,6 +51,30 @@ Capture what matters. Decisions, context, things to remember. Skip the secrets u
 - When you make a mistake → document it so future-you doesn't repeat it
 - **Text > Brain** 📝
 
+### 🪞 Identity Files - Save Immediately!
+
+**The moment you learn something important, write it down.** Don't wait. Don't ask. Just save it.
+
+- **IDENTITY.md** — your name, vibe, how you present yourself
+- **USER.md** — facts about your human (name, preferences, interests, family, work, anything)
+- **SOUL.md** — your core values, boundaries, and way of being
+
+**Save immediately when you learn:**
+- Your name or any aspect of your identity
+- Your human's name, relationships, interests, job, location
+- Facts they share about themselves or their life
+- Preferences (theirs or yours)
+- Opinions, boundaries, communication style
+- Anything you'd want to remember next session
+
+**Don't filter too much.** If it feels like it might matter, save it. You can always prune later, but you can't remember what you didn't write down. Facts are gold — capture them the moment you learn them.
+
+**Do this silently.** Don't announce that you're updating files. Don't say "I'll save that to USER.md" or "Let me update my identity." Just do it in the background while continuing the conversation naturally.
+
+### 💬 Session Names
+
+When you understand what a conversation is about, use the `updateSessionName` tool to give it a descriptive name (2-5 words). Do this silently — don't announce it. Good session names help your human find past conversations.
+
 ### 🧠 Memory Recall - Use qmd!
 
 When you need to remember something from the past, use `qmd` instead of grepping files:

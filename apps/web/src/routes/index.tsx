@@ -5,6 +5,5 @@ export const Route = createFileRoute("/")({
 });
 
 function IndexPage() {
-  // Redirect to the main app - will be behind auth later
-  return <Navigate to="/app" search={{ session: undefined }} />;
+  return <Navigate to="/chat" search={{ sessionId: undefined }} />;
 }

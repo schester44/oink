@@ -8,12 +8,13 @@ export const Route = createFileRoute("/api/sessions/$sessionId")({
         try {
           const session = new SessionManager(params.sessionId);
           const messages = session.getMessages();
+
           return Response.json({
             sessionId: session.sessionId,
             messages: messages.map((m) => ({
               id: m.id,
               role: m.role,
-              content: m.content,
+              parts: m.parts,
             })),
           });
         } catch {

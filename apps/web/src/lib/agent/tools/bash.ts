@@ -1,14 +1,16 @@
 import { logger } from "@/lib/logger";
-import { tool } from "ai";
+import { SharedV3ProviderOptions } from "@ai-sdk/provider";
 import { spawn } from "child_process";
 import { resolve, relative } from "path";
 import { z } from "zod";
+import { tool } from "ai";
 
 const DEFAULT_TIMEOUT = 30000; // 30 seconds
 const MAX_OUTPUT_BYTES = 50 * 1024; // 50KB
 
 interface BashToolOptions {
   workspaceDir: string;
+  providerOptions?: SharedV3ProviderOptions;
 }
 
 interface BashResult {
@@ -67,8 +69,12 @@ function validateDestructiveCommand(
   return null;
 }
 
-export function createBashTool({ workspaceDir }: BashToolOptions) {
+export function createBashTool({
+  workspaceDir,
+  providerOptions,
+}: BashToolOptions) {
   const bashTool = tool({
+    providerOptions,
     description: `Execute a shell command in the workspace. Returns stdout, stderr, and exit code. Output is truncated to ${MAX_OUTPUT_BYTES / 1024}KB. Commands timeout after ${DEFAULT_TIMEOUT / 1000} seconds. Default working directory is the workspace.`,
     inputSchema: z.object({
       command: z.string().describe("The shell command to execute"),

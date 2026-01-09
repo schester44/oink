@@ -1,31 +1,27 @@
-export type SessionEventType =
-  | "session"
-  | "message"
-  | "model_change"
-  | "compaction";
+export type SessionEventType = "session" | "message";
 
 export type MessageRole = "user" | "assistant" | "system";
 
-// Message part types matching AI SDK UI message format
+// UI message part types (matching useChat format)
 export interface TextPart {
   type: "text";
   text: string;
-}
-
-export interface ToolCallPart {
-  type: "tool-call";
-  toolCallId: string;
-  toolName: string;
-  input: unknown;
-  output?: unknown;
-  state?: "pending" | "output-available" | "error";
+  state?: "streaming" | "done";
 }
 
 export interface StepStartPart {
   type: "step-start";
 }
 
-export type MessagePart = TextPart | ToolCallPart | StepStartPart;
+export interface ToolPart {
+  type: string; // "tool-{toolName}" e.g. "tool-bash"
+  toolCallId: string;
+  state: "call" | "partial-call" | "output-available" | "result";
+  input?: Record<string, unknown>;
+  output?: unknown;
+}
+
+export type UIMessagePart = TextPart | StepStartPart | ToolPart;
 
 export interface BaseSessionEvent {
   type: SessionEventType;
@@ -43,27 +39,10 @@ export interface SessionEvent extends BaseSessionEvent {
 export interface MessageEvent extends BaseSessionEvent {
   type: "message";
   role: MessageRole;
-  content?: string; // Legacy simple text content
-  parts?: MessagePart[]; // Structured parts (preferred)
+  parts: UIMessagePart[];
 }
 
-export interface ModelChangeEvent extends BaseSessionEvent {
-  type: "model_change";
-  model: string;
-  previousModel?: string;
-}
-
-export interface CompactionEvent extends BaseSessionEvent {
-  type: "compaction";
-  compactedIds: string[];
-  summary: string;
-}
-
-export type SessionLine =
-  | SessionEvent
-  | MessageEvent
-  | ModelChangeEvent
-  | CompactionEvent;
+export type SessionLine = SessionEvent | MessageEvent;
 
 export interface SessionState {
   sessionId: string;

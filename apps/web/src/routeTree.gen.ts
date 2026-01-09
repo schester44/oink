@@ -12,8 +12,8 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthedRouteImport } from './routes/_authed'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
-import { Route as AuthedAppRouteImport } from './routes/_authed/app'
 import { Route as ApiSessionsIndexRouteImport } from './routes/api/sessions/index'
+import { Route as AuthedChatIndexRouteImport } from './routes/_authed/chat/index'
 import { Route as ApiSessionsSessionIdRouteImport } from './routes/api/sessions/$sessionId'
 
 const AuthedRoute = AuthedRouteImport.update({
@@ -30,15 +30,15 @@ const ApiChatRoute = ApiChatRouteImport.update({
   path: '/api/chat',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthedAppRoute = AuthedAppRouteImport.update({
-  id: '/app',
-  path: '/app',
-  getParentRoute: () => AuthedRoute,
-} as any)
 const ApiSessionsIndexRoute = ApiSessionsIndexRouteImport.update({
   id: '/api/sessions/',
   path: '/api/sessions/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthedChatIndexRoute = AuthedChatIndexRouteImport.update({
+  id: '/chat/',
+  path: '/chat/',
+  getParentRoute: () => AuthedRoute,
 } as any)
 const ApiSessionsSessionIdRoute = ApiSessionsSessionIdRouteImport.update({
   id: '/api/sessions/$sessionId',
@@ -48,44 +48,44 @@ const ApiSessionsSessionIdRoute = ApiSessionsSessionIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/app': typeof AuthedAppRoute
   '/api/chat': typeof ApiChatRoute
   '/api/sessions/$sessionId': typeof ApiSessionsSessionIdRoute
+  '/chat': typeof AuthedChatIndexRoute
   '/api/sessions': typeof ApiSessionsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/app': typeof AuthedAppRoute
   '/api/chat': typeof ApiChatRoute
   '/api/sessions/$sessionId': typeof ApiSessionsSessionIdRoute
+  '/chat': typeof AuthedChatIndexRoute
   '/api/sessions': typeof ApiSessionsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authed': typeof AuthedRouteWithChildren
-  '/_authed/app': typeof AuthedAppRoute
   '/api/chat': typeof ApiChatRoute
   '/api/sessions/$sessionId': typeof ApiSessionsSessionIdRoute
+  '/_authed/chat/': typeof AuthedChatIndexRoute
   '/api/sessions/': typeof ApiSessionsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/app'
     | '/api/chat'
     | '/api/sessions/$sessionId'
+    | '/chat'
     | '/api/sessions'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/app' | '/api/chat' | '/api/sessions/$sessionId' | '/api/sessions'
+  to: '/' | '/api/chat' | '/api/sessions/$sessionId' | '/chat' | '/api/sessions'
   id:
     | '__root__'
     | '/'
     | '/_authed'
-    | '/_authed/app'
     | '/api/chat'
     | '/api/sessions/$sessionId'
+    | '/_authed/chat/'
     | '/api/sessions/'
   fileRoutesById: FileRoutesById
 }
@@ -120,19 +120,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiChatRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authed/app': {
-      id: '/_authed/app'
-      path: '/app'
-      fullPath: '/app'
-      preLoaderRoute: typeof AuthedAppRouteImport
-      parentRoute: typeof AuthedRoute
-    }
     '/api/sessions/': {
       id: '/api/sessions/'
       path: '/api/sessions'
       fullPath: '/api/sessions'
       preLoaderRoute: typeof ApiSessionsIndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authed/chat/': {
+      id: '/_authed/chat/'
+      path: '/chat'
+      fullPath: '/chat'
+      preLoaderRoute: typeof AuthedChatIndexRouteImport
+      parentRoute: typeof AuthedRoute
     }
     '/api/sessions/$sessionId': {
       id: '/api/sessions/$sessionId'
@@ -145,11 +145,11 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthedRouteChildren {
-  AuthedAppRoute: typeof AuthedAppRoute
+  AuthedChatIndexRoute: typeof AuthedChatIndexRoute
 }
 
 const AuthedRouteChildren: AuthedRouteChildren = {
-  AuthedAppRoute: AuthedAppRoute,
+  AuthedChatIndexRoute: AuthedChatIndexRoute,
 }
 
 const AuthedRouteWithChildren =

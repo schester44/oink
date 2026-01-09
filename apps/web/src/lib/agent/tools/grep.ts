@@ -2,6 +2,7 @@ import { logger } from "@/lib/logger";
 import { tool } from "ai";
 import { spawn } from "child_process";
 import { z } from "zod";
+import { SharedV3ProviderOptions } from "@ai-sdk/provider";
 
 const DEFAULT_LIMIT = 100;
 const DEFAULT_MAX_BYTES = 50 * 1024; // 50KB
@@ -9,6 +10,7 @@ const GREP_MAX_LINE_LENGTH = 500;
 
 interface GrepToolOptions {
   workspaceDir: string;
+  providerOptions?: SharedV3ProviderOptions;
 }
 
 interface GrepMatch {
@@ -23,8 +25,12 @@ interface GrepResult {
   message: string;
 }
 
-export function createGrepTool({ workspaceDir }: GrepToolOptions) {
+export function createGrepTool({
+  workspaceDir,
+  providerOptions,
+}: GrepToolOptions) {
   const grepTool = tool({
+    providerOptions,
     description: `Search file contents for a pattern in the workspace. Returns matching lines with file paths and line numbers. Respects .gitignore. Output is truncated to ${DEFAULT_LIMIT} matches or ${DEFAULT_MAX_BYTES / 1024}KB (whichever is hit first). Long lines are truncated to ${GREP_MAX_LINE_LENGTH} chars.`,
     inputSchema: z.object({
       pattern: z.string().describe("The regex pattern to search for"),
@@ -56,7 +62,11 @@ export function createGrepTool({ workspaceDir }: GrepToolOptions) {
       const maxMatches = limit ?? DEFAULT_LIMIT;
       const searchPath = path ?? workspaceDir;
 
-      logger.info("Executing grepTool with pattern: %s in %s", pattern, searchPath);
+      logger.info(
+        "Executing grepTool with pattern: %s in %s",
+        pattern,
+        searchPath,
+      );
 
       const args = ["--json"];
 
