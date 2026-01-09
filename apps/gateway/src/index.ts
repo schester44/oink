@@ -1,42 +1,55 @@
-import { logger } from "./lib/logger";
+// apps/gateway/src/index.ts
+
+import { logger } from "./lib/logger.js";
+import { startScheduler, stopScheduler, getSchedulerStats } from "./lib/tasks/scheduler.js";
+import { startWebSocketServer, stopWebSocketServer, getWebSocketStats } from "./lib/websocket.js";
 
 async function startGateway() {
-  logger.info({ msg: "Starting gateway..." });
+  logger.info("Starting Oink Gateway");
 
-  try {
-    // TODO: Add cron jobs, heartbeats, etc.
+  // Start WebSocket server
+  startWebSocketServer();
 
-    process.on("uncaughtException", async (error) => {
-      logger.error({ msg: "Uncaught Exception", error });
-      process.exit(1);
-    });
+  // Start scheduler
+  await startScheduler();
 
-    process.on("unhandledRejection", async (reason) => {
-      logger.error({ msg: "Unhandled Rejection", reason });
-      process.exit(1);
-    });
+  // Log stats periodically
+  setInterval(() => {
+    const schedulerStats = getSchedulerStats();
+    const wsStats = getWebSocketStats();
+    logger.debug({ scheduler: schedulerStats, websocket: wsStats }, "Gateway stats");
+  }, 60000);
 
-    process.on("SIGTERM", async () => {
-      logger.info({ msg: "Received SIGTERM, shutting down gracefully..." });
-      process.exit(0);
-    });
-
-    process.on("SIGINT", async () => {
-      logger.info({ msg: "Received SIGINT, shutting down gracefully..." });
-      process.exit(0);
-    });
-
-    logger.info({ msg: "Gateway started successfully." });
-
-    // Keep the process alive
-    await new Promise(() => {});
-  } catch (error) {
-    logger.error({ msg: "Error starting gateway", error });
-    process.exit(1);
-  }
+  logger.info("Oink Gateway started successfully");
 }
 
+async function shutdown() {
+  logger.info("Shutting down gateway");
+
+  await stopScheduler();
+  await stopWebSocketServer();
+
+  logger.info("Gateway shutdown complete");
+  process.exit(0);
+}
+
+// Graceful shutdown handlers
+process.on("SIGTERM", shutdown);
+process.on("SIGINT", shutdown);
+
+// Global error handlers
+process.on("uncaughtException", (error) => {
+  logger.error({ error }, "Uncaught exception");
+  process.exit(1);
+});
+
+process.on("unhandledRejection", (reason) => {
+  logger.error({ reason }, "Unhandled rejection");
+  process.exit(1);
+});
+
+// Start the gateway
 startGateway().catch((error) => {
-  logger.error({ msg: "Fatal error starting gateway", error });
+  logger.error({ error }, "Failed to start gateway");
   process.exit(1);
 });
