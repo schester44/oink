@@ -5,5 +5,7 @@ export const Route = createFileRoute("/")({
 });
 
 function IndexPage() {
-  return <Navigate to="/chat" search={{ sessionId: undefined }} />;
+  return (
+    <Navigate to="/chat" search={{ sessionId: undefined, instance: undefined }} />
+  );
 }

@@ -1,23 +1,33 @@
-// apps/gateway/src/index.ts
-
 import { logger } from "./lib/logger.js";
-import { startScheduler, stopScheduler, getSchedulerStats } from "./lib/tasks/scheduler.js";
-import { startWebSocketServer, stopWebSocketServer, getWebSocketStats } from "./lib/websocket.js";
+import {
+  startScheduler,
+  stopScheduler,
+  getSchedulerStats,
+} from "./tasks/scheduler.js";
+import {
+  startWebSocketServer,
+  stopWebSocketServer,
+  getWebSocketStats,
+} from "./websocket.js";
+import { startTRPCServer, stopTRPCServer } from "./trpc/server.js";
 
 async function startGateway() {
   logger.info("Starting Oink Gateway");
 
-  // Start WebSocket server
   await startWebSocketServer();
+  await startTRPCServer();
 
-  // Start scheduler
-  await startScheduler();
+  await startScheduler({
+    defaultInstanceId: "default",
+  });
 
-  // Log stats periodically
   setInterval(() => {
     const schedulerStats = getSchedulerStats();
     const wsStats = getWebSocketStats();
-    logger.debug({ scheduler: schedulerStats, websocket: wsStats }, "Gateway stats");
+    logger.debug(
+      { scheduler: schedulerStats, websocket: wsStats },
+      "Gateway stats",
+    );
   }, 60000);
 
   logger.info("Oink Gateway started successfully");
@@ -28,6 +38,7 @@ async function shutdown() {
 
   await stopScheduler();
   await stopWebSocketServer();
+  await stopTRPCServer();
 
   logger.info("Gateway shutdown complete");
   process.exit(0);

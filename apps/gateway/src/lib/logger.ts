@@ -11,6 +11,7 @@ function getRepoRoot(): string {
     const stdout = execSync("git rev-parse --show-toplevel", {
       encoding: "utf8",
     });
+
     return stdout.trim();
   } catch {
     return path.resolve(".");
@@ -19,6 +20,7 @@ function getRepoRoot(): string {
 
 if (isDev) {
   const logsDir = join(getRepoRoot(), "logs");
+
   if (!existsSync(logsDir)) {
     mkdirSync(logsDir, { recursive: true });
   }

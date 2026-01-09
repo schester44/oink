@@ -1,13 +1,20 @@
 import { createServerFn } from "@tanstack/react-start";
-import { getCookie, setCookie } from "@tanstack/react-start/server";
-import * as z from "zod";
+import { z } from "zod";
 
-const storageKey = "showToolCalls";
+// Stub implementation for tool calls visibility toggle
+// TODO: Move this to gateway configuration or persist in localStorage
 
-export const getShowToolCallsServerFn = createServerFn().handler(
-  async () => getCookie(storageKey) === "true"
-);
+let showToolCalls = false;
+
+export const getShowToolCallsServerFn = createServerFn({
+  method: "GET",
+}).handler(async () => {
+  return showToolCalls;
+});
 
 export const setShowToolCallsServerFn = createServerFn({ method: "POST" })
   .inputValidator(z.boolean())
-  .handler(async ({ data }) => setCookie(storageKey, String(data)));
+  .handler(async ({ data }) => {
+    showToolCalls = data;
+    return showToolCalls;
+  });

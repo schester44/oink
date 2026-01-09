@@ -4,8 +4,7 @@ import {
   useNavigate,
 } from "@tanstack/react-router";
 import { useChat } from "@ai-sdk/react";
-import { DefaultChatTransport } from "ai";
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, useMemo } from "react";
 import { Bug, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,42 +22,90 @@ import {
   getShowToolCallsServerFn,
   setShowToolCallsServerFn,
 } from "@/lib/tool-calls";
-import { getSessionsServerFn } from "@/lib/sessions";
+import {
+  getSessionsServerFn,
+  getSessionServerFn,
+  type SessionInfo,
+} from "@/lib/sessions";
 import { getMetricsServerFn } from "@/entities/telemetry/actions/get-metrics";
 import { MetricsWidget } from "./-components/metrics-widget";
+import { InstanceTabs } from "./-components/instance-tabs";
+import {
+  getInstancesServerFn,
+  createInstanceServerFn,
+  renameInstanceServerFn,
+  deleteInstanceServerFn,
+  type Instance,
+} from "@/lib/instances";
+import {
+  getWebSocketTransport,
+  type ScheduledTaskNotification,
+} from "@/lib/websocket-transport";
+
+const DEFAULT_INSTANCE_ID = "default";
 
 export const Route = createFileRoute("/_authed/chat/")({
   component: ChatPage,
   validateSearch: (search) => ({
     sessionId: (search.sessionId as string) || undefined,
+    instance: (search.instance as string) || undefined,
   }),
-  loader: async () => {
-    const [showToolCalls, sessions, metrics] = await Promise.all([
+  loader: async ({ location }) => {
+    const searchParams = new URLSearchParams(location.search);
+    const instanceId = searchParams.get("instance") || DEFAULT_INSTANCE_ID;
+
+    const [showToolCalls, sessions, metrics, instances] = await Promise.all([
       getShowToolCallsServerFn(),
-      getSessionsServerFn(),
+      getSessionsServerFn({ data: { instanceId } }),
       getMetricsServerFn(),
+      getInstancesServerFn(),
     ]);
 
-    return { showToolCalls, sessions, metrics };
+    return { showToolCalls, sessions, metrics, instances, instanceId };
   },
 });
 
 function ChatPage() {
   const route = getRouteApi("/_authed/chat/");
-  const { sessionId: urlSessionId } = route.useSearch();
+  const { sessionId: urlSessionId, instance: urlInstance } = route.useSearch();
   const {
     showToolCalls: initialShowToolCalls,
-    sessions,
+    sessions: initialSessions,
     metrics: initialMetrics,
+    instances: initialInstances,
+    instanceId: loaderInstanceId,
   } = route.useLoaderData();
   const sessionId = urlSessionId || "main";
+  const instanceId = urlInstance || loaderInstanceId;
+
+  const [instances, setInstances] = useState<Instance[]>(initialInstances);
+  const [sessions, setSessions] = useState<SessionInfo[]>(initialSessions);
+
+  // Track last selected session per instance (page session only)
+  const sessionPerInstance = useRef<Map<string, string>>(new Map());
+
+  // Remember current session for current instance
+  useEffect(() => {
+    if (sessionId && instanceId) {
+      sessionPerInstance.current.set(instanceId, sessionId);
+    }
+  }, [sessionId, instanceId]);
+
+  // Sync sessions when instance changes (via navigation)
+  useEffect(() => {
+    setSessions(initialSessions);
+  }, [initialSessions]);
+
+  // Sync instances when they change (via navigation/reload)
+  useEffect(() => {
+    setInstances(initialInstances);
+  }, [initialInstances]);
 
   const navigate = useNavigate();
 
   const [input, setInput] = useState("");
   const [showToolCalls, setShowToolCalls] = useState(initialShowToolCalls);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
-  console.log("🪵 isInitialLoad", isInitialLoad);
   const [showStreamingDelay, setShowStreamingDelay] = useState(false);
   const [metrics, setMetrics] = useState(initialMetrics);
 
@@ -68,24 +115,56 @@ function ChatPage() {
     setShowToolCallsServerFn({ data: next });
   };
 
+  // Create WebSocket transport - memoized to maintain connection
+  const transport = useMemo(
+    () =>
+      getWebSocketTransport({
+        gatewayUrl: "ws://localhost:4445",
+        instanceId,
+        sessionId,
+      }),
+    [instanceId, sessionId],
+  );
+
+  // Update transport when instanceId or sessionId changes
+  useEffect(() => {
+    transport.setInstanceId(instanceId);
+    transport.setSessionId(sessionId);
+  }, [transport, instanceId, sessionId]);
+
   const { messages, sendMessage, status, setMessages } = useChat({
     id: sessionId,
-    transport: new DefaultChatTransport({
-      api: "/api/chat",
-      prepareSendMessagesRequest({ messages, id }) {
-        return {
-          body: {
-            sessionId,
-            message: messages[messages.length - 1],
-            id,
-          },
-        };
-      },
-    }),
+    transport,
     onFinish: () => {
       getMetricsServerFn().then(setMetrics);
     },
   });
+
+  // Connect transport and set up scheduled task handler
+  useEffect(() => {
+    // Connect to receive scheduled task notifications
+    transport.connect().catch(console.error);
+
+    // Handler to inject scheduled task results as assistant messages
+    const handleScheduledTask = (notification: ScheduledTaskNotification) => {
+      // Only handle notifications for the current instance
+      if (notification.instance !== instanceId) return;
+
+      const newMessage = {
+        id: `scheduled-${notification.taskId}-${Date.now()}`,
+        role: "assistant" as const,
+        parts: [{ type: "text" as const, text: notification.output }],
+      };
+
+      setMessages((prev) => [...prev, newMessage]);
+    };
+
+    transport.onScheduledTask(handleScheduledTask);
+
+    return () => {
+      transport.onScheduledTask(null);
+    };
+  }, [transport, instanceId, setMessages]);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -104,29 +183,22 @@ function ChatPage() {
   // Load existing session messages
   useEffect(() => {
     if (sessionId) {
-      fetch(`/api/sessions/${sessionId}`)
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.messages) {
+      getSessionServerFn({ data: { sessionId, instanceId } })
+        .then((messages) => {
+          if (messages && messages.length > 0) {
             // Messages are already in UI format with parts
-            const uiMessages = data.messages.map(
-              (m: {
-                id: string;
-                role: string;
-                parts: Array<{ type: string; [key: string]: unknown }>;
-              }) => ({
-                id: m.id,
-                role: m.role as "user" | "assistant" | "system",
-                parts: m.parts,
-              }),
-            );
+            const uiMessages = messages.map((m) => ({
+              id: m.id,
+              role: m.role as "user" | "assistant" | "system",
+              parts: m.parts,
+            }));
             setMessages(uiMessages);
           }
         })
         .catch(console.error)
         .finally(() => setIsInitialLoad(false));
     }
-  }, [sessionId, setMessages]);
+  }, [sessionId, instanceId, setMessages]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -166,8 +238,39 @@ function ChatPage() {
 
     navigate({
       to: "/chat",
-      search: (s) => ({ ...s, sessionId: crypto.randomUUID() }),
+      search: { instance: instanceId, sessionId: crypto.randomUUID() },
     });
+  };
+
+  const handleSelectInstance = (newInstanceId: string) => {
+    setMessages([]);
+
+    // Restore last session for this instance, if any
+    const lastSessionId = sessionPerInstance.current.get(newInstanceId);
+
+    navigate({
+      to: "/chat",
+      search: { instance: newInstanceId, sessionId: lastSessionId },
+    });
+  };
+
+  const handleCreateInstance = async (name: string) => {
+    const newInstance = await createInstanceServerFn({ data: { name } });
+    setInstances([...instances, newInstance]);
+    handleSelectInstance(newInstance.id);
+  };
+
+  const handleRenameInstance = async (id: string, name: string) => {
+    await renameInstanceServerFn({ data: { id, name } });
+    setInstances(instances.map((i) => (i.id === id ? { ...i, name } : i)));
+  };
+
+  const handleDeleteInstance = async (id: string) => {
+    await deleteInstanceServerFn({ data: { id } });
+    setInstances(instances.filter((i) => i.id !== id));
+    if (instanceId === id) {
+      handleSelectInstance(DEFAULT_INSTANCE_ID);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -191,6 +294,14 @@ function ChatPage() {
 
   return (
     <div className="flex h-screen flex-col bg-background">
+      <InstanceTabs
+        instances={instances}
+        activeInstanceId={instanceId}
+        onSelect={handleSelectInstance}
+        onCreate={handleCreateInstance}
+        onRename={handleRenameInstance}
+        onDelete={handleDeleteInstance}
+      />
       <header className="flex items-center justify-between border-b px-4 py-3">
         <div className="flex items-center gap-2">
           <span className="text-2xl">🐷</span>
@@ -204,7 +315,7 @@ function ChatPage() {
 
               navigate({
                 to: "/chat",
-                search: { sessionId: value },
+                search: { instance: instanceId, sessionId: value },
               });
             }}
           >
