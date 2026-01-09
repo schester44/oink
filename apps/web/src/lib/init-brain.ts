@@ -1,10 +1,4 @@
-import {
-  copyFileSync,
-  existsSync,
-  mkdirSync,
-  readdirSync,
-  writeFileSync,
-} from "fs";
+import { access, copyFile, mkdir, readdir, writeFile } from "fs/promises";
 import { join } from "path";
 import { logger } from "./logger";
 import {
@@ -15,16 +9,29 @@ import {
   DEFAULT_TOOLS_PROMPT,
   DEFAULT_USER_PROMPT,
 } from "./brain";
+import { getWorkspaceDir } from "./config";
 
-const BRAIN_DIR = join(import.meta.dirname, "..", "brain");
 const SYSTEM_SKILLS = join(import.meta.dirname, "..", "skills");
-const BRAIN_SKILLS_DIR = join(BRAIN_DIR, "skills");
 
 /**
  * Initialize brain files if they don't exist.
  * BOOTSTRAP.md is only created on fresh install (when no other brain files exist).
  */
-export function initializeBrain() {
+
+const initializedCache = new Set<string>();
+
+export async function initializeBrain({ instanceId }: { instanceId: string }) {
+  logger.info({ msg: `Initializing brain for instance: ${instanceId}` });
+
+  if (initializedCache.has(instanceId)) {
+    return;
+  }
+
+  initializedCache.add(instanceId);
+
+  const brainDir = getWorkspaceDir(instanceId);
+  const brainSkillsDir = join(brainDir, "skills");
+
   const brainFiles = {
     "AGENTS.md": DEFAULT_AGENTS_PROMPT,
     "IDENTITY.md": DEFAULT_IDENTITY_PROMPT,
@@ -34,52 +41,79 @@ export function initializeBrain() {
   };
 
   // Ensure brain directory exists
-  if (!existsSync(BRAIN_DIR)) {
-    mkdirSync(BRAIN_DIR, { recursive: true });
-    logger.info("Created brain directory");
+  try {
+    await access(brainDir);
+  } catch {
+    await mkdir(brainDir, { recursive: true });
+    logger.info(`Created brain directory for instance: ${instanceId}`);
   }
 
   // Check if any brain files exist (to determine if this is a fresh install)
-  const existingFiles = Object.keys(brainFiles).filter((file) =>
-    existsSync(join(BRAIN_DIR, file)),
-  );
+  const existingFiles = [];
+
+  for (const file of Object.keys(brainFiles)) {
+    try {
+      await access(join(brainDir, file));
+      existingFiles.push(file);
+    } catch {
+      // File doesn't exist
+    }
+  }
+
   const isFreshInstall = existingFiles.length === 0;
 
   // Create missing brain files
   for (const [file, content] of Object.entries(brainFiles)) {
-    const filePath = join(BRAIN_DIR, file);
+    const filePath = join(brainDir, file);
 
-    if (!existsSync(filePath)) {
-      writeFileSync(filePath, content);
-      logger.info(`Created ${file}`);
+    try {
+      await access(filePath);
+    } catch {
+      await writeFile(filePath, content);
+      logger.info(`Created ${file} for instance: ${instanceId}`);
     }
   }
 
   // Only create BOOTSTRAP.md on fresh install
-  const bootstrapPath = join(BRAIN_DIR, "BOOTSTRAP.md");
+  const bootstrapPath = join(brainDir, "BOOTSTRAP.md");
 
-  if (isFreshInstall && !existsSync(bootstrapPath)) {
-    writeFileSync(bootstrapPath, DEFAULT_BOOTSTRAP_PROMPT);
-    logger.info("Created BOOTSTRAP.md (fresh install)");
+  if (isFreshInstall) {
+    try {
+      await access(bootstrapPath);
+    } catch {
+      await writeFile(bootstrapPath, DEFAULT_BOOTSTRAP_PROMPT);
+
+      logger.info(
+        `Created BOOTSTRAP.md (fresh install) for instance: ${instanceId}`,
+      );
+    }
   }
 
   // Copy system skills to brain/skills if they don't exist
-  if (existsSync(SYSTEM_SKILLS)) {
-    if (!existsSync(BRAIN_SKILLS_DIR)) {
-      mkdirSync(BRAIN_SKILLS_DIR, { recursive: true });
+  try {
+    await access(SYSTEM_SKILLS);
+
+    try {
+      await access(brainSkillsDir);
+    } catch {
+      await mkdir(brainSkillsDir, { recursive: true });
     }
 
-    const systemSkillFiles = readdirSync(SYSTEM_SKILLS).filter((f) =>
+    const systemSkillFiles = (await readdir(SYSTEM_SKILLS)).filter((f) =>
       f.endsWith(".md"),
     );
 
     for (const skillFile of systemSkillFiles) {
-      const destPath = join(BRAIN_SKILLS_DIR, skillFile);
+      const destPath = join(brainSkillsDir, skillFile);
 
-      if (!existsSync(destPath)) {
-        copyFileSync(join(SYSTEM_SKILLS, skillFile), destPath);
+      try {
+        await access(destPath);
+      } catch {
+        await copyFile(join(SYSTEM_SKILLS, skillFile), destPath);
         logger.info(`Copied system skill: ${skillFile}`);
       }
     }
+  } catch {
+    // SYSTEM_SKILLS directory doesn't exist
   }
 }

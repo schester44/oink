@@ -13,6 +13,8 @@ import { SessionManager } from "../../lib/session";
 import { createTools } from "@/lib/agent/tools";
 import type { MessageRole, UIMessagePart } from "../../lib/session/types";
 import { recordLLMRequest } from "../../entities/telemetry";
+import { DEFAULT_INSTANCE_ID } from "@/lib/config";
+import { initializeBrain } from "@/lib/init-brain";
 
 async function generateSessionName(messages: string[]): Promise<string> {
   const result = await generateText({
@@ -37,13 +39,23 @@ export const Route = createFileRoute("/api/chat")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const { message, sessionId } = await request.json();
+        const {
+          message,
+          sessionId,
+          instanceId: requestInstanceId,
+        } = await request.json();
 
-        // Normalize sessionId - treat empty strings and "undefined" as undefined
+        // Normalize instanceId and sessionId
+        const instanceId = requestInstanceId || DEFAULT_INSTANCE_ID;
         const normalizedSessionId =
           sessionId && sessionId !== "undefined" ? sessionId : undefined;
-        const session = new SessionManager(normalizedSessionId);
-        const systemPrompt = buildSystemPrompt();
+
+        await initializeBrain({ instanceId });
+        const session = new SessionManager({
+          sessionId: normalizedSessionId,
+          instanceId,
+        });
+        const systemPrompt = buildSystemPrompt({ instanceId });
 
         const previousMessages = session.getMessages();
 
@@ -54,10 +66,10 @@ export const Route = createFileRoute("/api/chat")({
         const userMessageCount = previousUserMessages.length + 1;
 
         // Save the user's message to the session
-        session.appendStructuredMessage(
-          message.role as MessageRole,
-          message.parts as UIMessagePart[],
-        );
+        session.appendStructuredMessage({
+          role: message.role as MessageRole,
+          parts: message.parts as UIMessagePart[],
+        });
 
         // Generate session name on 1st and 3rd user messages
         if (userMessageCount === 1 || userMessageCount === 3) {
@@ -86,7 +98,7 @@ export const Route = createFileRoute("/api/chat")({
 
         const messages = [...previousMessages, message];
 
-        const tools = createTools({ session });
+        const tools = createTools({ session, instanceId });
 
         const validatedMessages = await validateUIMessages({
           messages,
@@ -120,10 +132,10 @@ export const Route = createFileRoute("/api/chat")({
 
             for (const msg of finalMessages) {
               if (!originalIds.has(msg.id)) {
-                session.appendStructuredMessage(
-                  msg.role as MessageRole,
-                  msg.parts as UIMessagePart[],
-                );
+                session.appendStructuredMessage({
+                  role: msg.role as MessageRole,
+                  parts: msg.parts as UIMessagePart[],
+                });
               }
             }
           },

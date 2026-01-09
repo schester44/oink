@@ -13,9 +13,14 @@ import type {
   MessageEvent,
   MessageRole,
   SessionState,
+  Usage,
+  UIMessagePart,
 } from "./types";
+import { getInstanceDir, DEFAULT_INSTANCE_ID } from "../config";
 
-const SESSIONS_DIR = join(process.cwd(), "src/brain/sessions");
+function getSessionsDir(instanceId: string): string {
+  return join(getInstanceDir(instanceId), "sessions");
+}
 
 function generateId(): string {
   return crypto.randomUUID();
@@ -31,8 +36,17 @@ function getCwd(): string {
 
 export class SessionManager {
   private state: SessionState;
+  private sessionsDir: string;
 
-  constructor(sessionId?: string) {
+  constructor({
+    sessionId,
+    instanceId,
+  }: {
+    sessionId: string;
+    instanceId: string;
+  }) {
+    this.sessionsDir = getSessionsDir(instanceId);
+
     if (sessionId) {
       this.state = this.loadSession(sessionId);
     } else {
@@ -55,7 +69,7 @@ export class SessionManager {
 
   private createSession(sessionId?: string, title?: string): SessionState {
     const id = sessionId || generateId();
-    const sessionDir = join(SESSIONS_DIR, id);
+    const sessionDir = join(this.sessionsDir, id);
     const filePath = join(sessionDir, "log.jsonl");
     const metaPath = join(sessionDir, "meta.json");
 
@@ -84,7 +98,7 @@ export class SessionManager {
   }
 
   private loadSession(sessionId: string): SessionState {
-    const filePath = join(SESSIONS_DIR, sessionId, "log.jsonl");
+    const filePath = join(this.sessionsDir, sessionId, "log.jsonl");
 
     if (!existsSync(filePath)) {
       // Create session with the given ID if it doesn't exist
@@ -122,15 +136,20 @@ export class SessionManager {
     return this.state.leafId;
   }
 
-  appendMessage(role: MessageRole, text: string): MessageEvent {
+  appendMessage(args: {
+    role: MessageRole;
+    text: string;
+    usage?: Usage;
+  }): MessageEvent {
     const event: MessageEvent = {
       type: "message",
       id: generateId(),
       timestamp: timestamp(),
       cwd: getCwd(),
       parentId: this.state.leafId,
-      role,
-      content: [{ type: "text", text }],
+      role: args.role,
+      parts: [{ type: "text", text: args.text }],
+      usage: args.usage,
     };
 
     this.appendLine(event);
@@ -139,18 +158,20 @@ export class SessionManager {
     return event;
   }
 
-  appendStructuredMessage(
-    role: MessageRole,
-    parts: UIMessagePart[],
-  ): MessageEvent {
+  appendStructuredMessage(args: {
+    role: MessageRole;
+    parts: UIMessagePart[];
+    usage?: Usage;
+  }): MessageEvent {
     const event: MessageEvent = {
       type: "message",
       id: generateId(),
       timestamp: timestamp(),
       cwd: getCwd(),
       parentId: this.state.leafId,
-      role,
-      parts,
+      role: args.role,
+      parts: args.parts,
+      usage: args.usage,
     };
 
     this.appendLine(event);
@@ -182,24 +203,28 @@ export class SessionManager {
   }
 
   updateName(name: string): void {
-    const metaPath = join(SESSIONS_DIR, this.state.sessionId, "meta.json");
+    const metaPath = join(this.sessionsDir, this.state.sessionId, "meta.json");
     const meta = { name };
     writeFileSync(metaPath, JSON.stringify(meta, null, 2));
   }
 
-  static listSessions(): { id: string; name: string; timestamp: string }[] {
-    if (!existsSync(SESSIONS_DIR)) {
+  static listSessions(
+    instanceId: string = DEFAULT_INSTANCE_ID,
+  ): { id: string; name: string; timestamp: string }[] {
+    const sessionsDir = getSessionsDir(instanceId);
+
+    if (!existsSync(sessionsDir)) {
       return [];
     }
 
-    const dirs = readdirSync(SESSIONS_DIR, { withFileTypes: true })
+    const dirs = readdirSync(sessionsDir, { withFileTypes: true })
       .filter((d) => d.isDirectory())
       .map((d) => d.name);
 
     return dirs
       .map((dir: string) => {
         try {
-          const sessionDir = join(SESSIONS_DIR, dir);
+          const sessionDir = join(sessionsDir, dir);
           const metaPath = join(sessionDir, "meta.json");
           const logPath = join(sessionDir, "log.jsonl");
 

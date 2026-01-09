@@ -36,10 +36,17 @@ export interface SessionEvent extends BaseSessionEvent {
   title?: string;
 }
 
+export interface Usage {
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+}
+
 export interface MessageEvent extends BaseSessionEvent {
   type: "message";
   role: MessageRole;
   parts: UIMessagePart[];
+  usage?: Usage;
 }
 
 export type SessionLine = SessionEvent | MessageEvent;

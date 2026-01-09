@@ -2,7 +2,7 @@ import { readFileSync, existsSync, readdirSync } from "fs";
 import { join } from "path";
 import matter from "gray-matter";
 
-import { config } from "./config";
+import { getWorkspaceDir } from "./config";
 import { formatSkillsForPrompt } from "./agent/skills";
 
 function loadTemplate(filename: string, workspaceDir: string) {
@@ -55,11 +55,13 @@ function loadSkills(workspaceDir: string) {
 }
 
 interface BuildSystemPromptOptions {
-  workspaceDir?: string;
+  instanceId: string;
 }
 
-export function buildSystemPrompt(opts: BuildSystemPromptOptions = {}): string {
-  const { workspaceDir = config.workspaceDir } = opts;
+export function buildSystemPrompt({
+  instanceId,
+}: BuildSystemPromptOptions): string {
+  const workspaceDir = getWorkspaceDir(instanceId);
   const soul = loadTemplate("SOUL.md", workspaceDir);
   const identity = loadTemplate("IDENTITY.md", workspaceDir);
   const user = loadTemplate("USER.md", workspaceDir);
