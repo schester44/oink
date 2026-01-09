@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite dev",
+    "dev": "NODE_ENV=development npx tsx server.ts",
     "build": "vite build",
     "start": "node ./.output/server/index.mjs",
     "lint": "eslint src/",
@@ -17,7 +17,6 @@
     "@hookform/resolvers": "^3",
     "@radix-ui/react-select": "^2.2.6",
     "@radix-ui/react-slot": "^1",
-    "@tailwindcss/typography": "^0.5.19",
     "@tailwindcss/vite": "^4",
     "@tanstack/devtools-vite": "^0.3",
     "@tanstack/react-devtools": "^0.8",
@@ -31,6 +30,7 @@
     "chokidar": "^4.0.3",
     "class-variance-authority": "^0.7",
     "clsx": "^2",
+    "express": "^5.2.1",
     "glob": "^11.0.0",
     "gray-matter": "^4.0.3",
     "lucide-react": "^0.468",
@@ -41,10 +41,12 @@
     "react-hook-form": "^7",
     "react-markdown": "^10.1.0",
     "sonner": "^2",
+    "srvx": "^0.10.0",
     "tailwind-merge": "^2",
     "zod": "^3"
   },
   "devDependencies": {
+    "@types/express": "^5",
     "@vitejs/plugin-react": "^4",
     "tailwindcss": "^4",
     "tw-animate-css": "^1",

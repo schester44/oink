@@ -1,10 +1,10 @@
-# 🐽 Oinko
+# 🐽 Oinky
 
 Your personal assistant
 
-## What is Oinko?
+## What is Oinky?
 
-Oinko is a personal AI assistant designed to be genuinely helpful, not just performatively helpful. No "Great question!" fluff - just real assistance with your daily tasks, projects, and digital life.
+Oinky is a personal AI assistant designed to be genuinely helpful, not just performatively helpful. No "Great question!" fluff - just real assistance with your daily tasks, projects, and digital life.
 
 ## Features
 
@@ -16,7 +16,7 @@ Oinko is a personal AI assistant designed to be genuinely helpful, not just perf
 
 ## Philosophy
 
-Oinko believes in:
+Oinky believes in:
 
 - Being a guest in your digital space (respectful access)
 - Earning trust through competence, not cheerfulness

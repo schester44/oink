@@ -12,6 +12,7 @@ import { buildSystemPrompt } from "../../lib/prompts";
 import { SessionManager } from "../../lib/session";
 import { createTools } from "@/lib/agent/tools";
 import type { MessageRole, UIMessagePart } from "../../lib/session/types";
+import { recordLLMRequest } from "../../entities/telemetry";
 
 async function generateSessionName(messages: string[]): Promise<string> {
   const result = await generateText({
@@ -20,6 +21,14 @@ async function generateSessionName(messages: string[]): Promise<string> {
       "Generate a short, concise session name (2-5 words) that captures the main topic of the conversation. Return ONLY the name, nothing else.",
     prompt: `Based on these user messages, what is the topic?\n\n${messages.join("\n\n")}`,
   });
+
+  // Record telemetry for session name generation
+  if (result.usage) {
+    recordLLMRequest({
+      inputTokens: result.usage.inputTokens ?? 0,
+      outputTokens: result.usage.outputTokens ?? 0,
+    });
+  }
 
   return result.text.trim();
 }
@@ -89,6 +98,14 @@ export const Route = createFileRoute("/api/chat")({
           messages: await convertToModelMessages(validatedMessages),
           stopWhen: stepCountIs(250), // Allow up to 5 steps for tool calls + response
           tools,
+        });
+
+        // Record telemetry when stream completes (don't block response)
+        result.usage.then((usage) => {
+          recordLLMRequest({
+            inputTokens: usage.inputTokens ?? 0,
+            outputTokens: usage.outputTokens ?? 0,
+          });
         });
 
         const response = result.toUIMessageStreamResponse({

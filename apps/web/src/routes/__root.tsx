@@ -24,7 +24,7 @@ export const Route = createRootRoute({
         content: "width=device-width, initial-scale=1, minimum-scale=1",
       },
       {
-        title: "Oinko - AI Personal Assistant",
+        title: "Oinky - AI Personal Assistant",
       },
     ],
     links: [

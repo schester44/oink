@@ -64,6 +64,8 @@ export function buildSystemPrompt(opts: BuildSystemPromptOptions = {}): string {
   const identity = loadTemplate("IDENTITY.md", workspaceDir);
   const user = loadTemplate("USER.md", workspaceDir);
   const bootstrap = loadTemplate("BOOTSTRAP.md", workspaceDir);
+  const agents = loadTemplate("AGENTS.md", workspaceDir);
+  const tools = loadTemplate("TOOLS.md", workspaceDir);
   const skills = loadSkills(workspaceDir);
 
   const parts: string[] = [];
@@ -78,6 +80,14 @@ export function buildSystemPrompt(opts: BuildSystemPromptOptions = {}): string {
 
   if (identity) {
     parts.push(identity.content);
+  }
+
+  if (agents) {
+    parts.push(agents.content);
+  }
+
+  if (tools) {
+    parts.push(tools.content);
   }
 
   if (user) {

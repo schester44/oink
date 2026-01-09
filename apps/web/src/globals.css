@@ -1,5 +1,4 @@
 @import "tailwindcss";
-@import "@tailwindcss/typography";
 @import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));
@@ -122,4 +121,25 @@
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* Animated ellipsis */
+@keyframes ellipsis {
+  0%, 20% { opacity: 0; }
+  40%, 100% { opacity: 1; }
+}
+
+.animate-ellipsis-1 {
+  animation: ellipsis 1.2s infinite;
+  animation-delay: 0s;
+}
+
+.animate-ellipsis-2 {
+  animation: ellipsis 1.2s infinite;
+  animation-delay: 0.2s;
+}
+
+.animate-ellipsis-3 {
+  animation: ellipsis 1.2s infinite;
+  animation-delay: 0.4s;
 }
