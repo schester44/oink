@@ -2,8 +2,7 @@
 
 import type { Context } from "grammy";
 import type { PhotoSize, Voice, Audio, Document } from "grammy/types";
-import { storeMediaFromBuffer } from "../../media/index.js";
-import { transcribeAudio } from "../../media/transcription.js";
+import { storeMediaFromBuffer, transcribeAudio } from "../../media/index.js";
 import { logger } from "../../../lib/logger.js";
 import type { MessageContent } from "../../types.js";
 

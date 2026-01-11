@@ -84,6 +84,19 @@ export interface PluginConfig {
 
 export interface PluginsConfig {
   plugins: Record<string, PluginConfig>;
+  transcription?: {
+    provider: "local-whisper" | "openai-whisper" | "auto";
+    localWhisper?: {
+      modelPath?: string;
+      modelSize?: "tiny" | "tiny.en" | "base" | "base.en" | "small" | "small.en" | "medium" | "medium.en" | "large";
+      language?: string;
+      threads?: number;
+    };
+    openaiWhisper?: {
+      apiKey?: string;
+      model?: string;
+    };
+  };
 }
 
 export interface TelegramPluginConfig extends PluginConfig {

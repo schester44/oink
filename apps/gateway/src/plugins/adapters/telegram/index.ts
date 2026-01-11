@@ -38,6 +38,7 @@ export function create(
       await bot.api.sendChatAction(chatId, "typing");
     } catch (error) {
       logger.debug({ error, chatId }, "Failed to send typing indicator");
+
       return;
     }
 
@@ -45,8 +46,10 @@ export function create(
     const interval = setInterval(async () => {
       if (!bot) {
         stopTypingIndicator(chatId);
+
         return;
       }
+
       try {
         await bot.api.sendChatAction(chatId, "typing");
       } catch (error) {
@@ -60,6 +63,7 @@ export function create(
 
   const stopTypingIndicator = (chatId: string): void => {
     const interval = typingIntervals.get(chatId);
+
     if (interval) {
       clearInterval(interval);
       typingIntervals.delete(chatId);
@@ -72,7 +76,9 @@ export function create(
     }
   };
 
-  const handleOutgoingChunk = async (message: OutgoingMessage): Promise<void> => {
+  const handleOutgoingChunk = async (
+    message: OutgoingMessage,
+  ): Promise<void> => {
     if (message.pluginId !== PLUGIN_ID) return;
     if (!bot) return;
 

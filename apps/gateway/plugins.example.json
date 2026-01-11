@@ -1,4 +1,15 @@
 {
+  "transcription": {
+    "provider": "auto",
+    "localWhisper": {
+      "modelSize": "base.en",
+      "language": "en",
+      "threads": 4
+    },
+    "openaiWhisper": {
+      "apiKey": "${OPENAI_API_KEY}"
+    }
+  },
   "plugins": {
     "websocket": {
       "enabled": true

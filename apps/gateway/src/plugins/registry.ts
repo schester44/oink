@@ -5,6 +5,7 @@ import { join } from "path";
 import { config } from "../lib/config.js";
 import { logger } from "../lib/logger.js";
 import { eventBus } from "./event-bus.js";
+import { transcriptionService } from "./media/index.js";
 import type { MessagePlugin, PluginsConfig, PluginConfig } from "./types.js";
 
 const ENV_VAR_PATTERN = /\$\{(\w+)\}/g;
@@ -42,6 +43,8 @@ class PluginRegistry {
   async loadFromConfig(): Promise<void> {
     if (!existsSync(this.configPath)) {
       logger.info({ path: this.configPath }, "No plugins config found, using defaults");
+      // Still initialize transcription with defaults
+      await transcriptionService.initialize();
       return;
     }
 
@@ -49,6 +52,12 @@ class PluginRegistry {
       const raw = readFileSync(this.configPath, "utf-8");
       const parsed = JSON.parse(raw) as PluginsConfig;
       const pluginsConfig = resolveEnvVars(parsed);
+
+      // Initialize transcription service if configured
+      if (pluginsConfig.transcription) {
+        transcriptionService.configure(pluginsConfig.transcription);
+      }
+      await transcriptionService.initialize();
 
       for (const [id, settings] of Object.entries(pluginsConfig.plugins)) {
         if (!settings.enabled) {
@@ -102,6 +111,9 @@ class PluginRegistry {
         logger.error({ error, pluginId: id }, "Failed to stop plugin");
       }
     }
+
+    // Shutdown transcription service
+    await transcriptionService.shutdown();
   }
 
   get(id: string): MessagePlugin | undefined {
