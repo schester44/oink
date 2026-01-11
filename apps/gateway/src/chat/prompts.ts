@@ -4,7 +4,7 @@ import { readFileSync, existsSync, readdirSync } from "fs";
 import { join } from "path";
 import matter from "gray-matter";
 
-import { getWorkspaceDir } from "../config.js";
+import { getWorkspaceDir, config } from "../config.js";
 import { formatSkillsForPrompt } from "../agent/skills.js";
 
 function loadTemplate(filename: string, workspaceDir: string) {
@@ -24,9 +24,7 @@ function loadTemplate(filename: string, workspaceDir: string) {
   }
 }
 
-function loadSkills(workspaceDir: string) {
-  const skillsDir = join(workspaceDir, "skills");
-
+function loadSkillsFromDir(skillsDir: string) {
   if (!existsSync(skillsDir)) return [];
 
   const skillFiles = readdirSync(skillsDir).filter((file: string) =>
@@ -58,6 +56,10 @@ function loadSkills(workspaceDir: string) {
   return skills;
 }
 
+function loadSkills({ skillDirs }: { skillDirs: string[] }) {
+  return skillDirs.flatMap((dir) => loadSkillsFromDir(dir));
+}
+
 interface BuildSystemPromptOptions {
   instanceId: string;
   userTimezone: string;
@@ -74,7 +76,9 @@ export function buildSystemPrompt({
   const bootstrap = loadTemplate("BOOTSTRAP.md", workspaceDir);
   const agents = loadTemplate("AGENTS.md", workspaceDir);
   const tools = loadTemplate("TOOLS.md", workspaceDir);
-  const skills = loadSkills(workspaceDir);
+  const skills = loadSkills({
+    skillDirs: [join(workspaceDir, "skills"), config.systemSkillsDir],
+  });
 
   const parts: string[] = [];
 
