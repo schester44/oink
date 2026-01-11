@@ -13,6 +13,12 @@ export interface StepStartPart {
   type: "step-start";
 }
 
+export interface ImagePart {
+  type: "image";
+  image: string; // base64 encoded image data
+  mimeType: string;
+}
+
 export interface ToolPart {
   type: string; // "tool-{toolName}" e.g. "tool-bash"
   toolCallId: string;
@@ -21,7 +27,7 @@ export interface ToolPart {
   output?: unknown;
 }
 
-export type UIMessagePart = TextPart | StepStartPart | ToolPart;
+export type UIMessagePart = TextPart | StepStartPart | ImagePart | ToolPart;
 
 export interface BaseSessionEvent {
   type: SessionEventType;

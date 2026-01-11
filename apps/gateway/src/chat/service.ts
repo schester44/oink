@@ -18,24 +18,33 @@ import { config } from "@/config.js";
 import { recordLLMRequest } from "@/lib/telemetry/index.js";
 import { readSettings } from "@/lib/settings.js";
 
+type NormalizedPart =
+  | { type: "text"; text: string }
+  | { type: "image"; image: string; mimeType: string };
+
 /**
  * Normalize a message to ensure it has `parts` array.
  * Messages may come with either `parts` or `content`.
+ * Handles both text and image parts for vision support.
  */
-function normalizeMessageParts(
-  message: ChatMessage,
-): Array<{ type: "text"; text: string }> {
+function normalizeMessageParts(message: ChatMessage): NormalizedPart[] {
   if (message.parts && message.parts.length > 0) {
-    // Filter to text parts only for simplicity
-    return message.parts
-      .filter(
-        (p): p is { type: "text"; text: string } =>
-          p.type === "text" && typeof p.text === "string",
-      )
-      .map((p) => ({ type: "text" as const, text: p.text }));
+    const result: NormalizedPart[] = [];
+    for (const p of message.parts) {
+      if (p.type === "text" && typeof p.text === "string") {
+        result.push({ type: "text", text: p.text });
+      } else if (p.type === "image" && typeof p.image === "string") {
+        result.push({
+          type: "image",
+          image: p.image as string,
+          mimeType: (p.mimeType as string) || "image/jpeg",
+        });
+      }
+    }
+    return result.length > 0 ? result : [{ type: "text", text: message.content }];
   }
 
-  return [{ type: "text" as const, text: message.content }];
+  return [{ type: "text", text: message.content }];
 }
 
 /**
@@ -78,10 +87,10 @@ export async function* streamChat(
     // Normalize the incoming message parts
     const normalizedParts = normalizeMessageParts(message);
 
-    // Save user message to session
+    // Save user message to session (cast to UIMessagePart for storage)
     session.appendStructuredMessage({
       role: message.role,
-      parts: normalizedParts,
+      parts: normalizedParts as UIMessagePart[],
     });
 
     const previousMessages = session.getMessages();
@@ -105,14 +114,30 @@ export async function* streamChat(
     }
 
     // Convert session messages to AI SDK format for validation
-    // Only include text parts for the model
-    const messagesForValidation = previousMessages.map((m) => ({
-      id: m.id,
-      role: m.role as "user" | "assistant",
-      parts: (m.parts as UIMessagePart[])
-        .filter((p): p is { type: "text"; text: string } => p.type === "text")
-        .map((p) => ({ type: "text" as const, text: p.text })),
-    }));
+    // Include text and image parts for vision support
+    const messagesForValidation = previousMessages.map((m) => {
+      const parts: Array<{ type: "text"; text: string } | { type: "image"; image: string }> = [];
+
+      for (const p of m.parts as UIMessagePart[]) {
+        if (p.type === "text" && "text" in p) {
+          parts.push({ type: "text", text: p.text });
+        } else if (p.type === "image" && "image" in p) {
+          // Format image for AI SDK: base64 data URL
+          const imagePart = p as { image: string; mimeType?: string };
+          const mimeType = imagePart.mimeType || "image/jpeg";
+          parts.push({
+            type: "image",
+            image: `data:${mimeType};base64,${imagePart.image}`,
+          });
+        }
+      }
+
+      return {
+        id: m.id,
+        role: m.role as "user" | "assistant",
+        parts,
+      };
+    });
 
     const validatedMessages = await validateUIMessages({
       messages: messagesForValidation,

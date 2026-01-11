@@ -3,7 +3,12 @@
 import { Bot } from "grammy";
 import { eventBus } from "../../event-bus.js";
 import { logger } from "../../../lib/logger.js";
-import type { MessagePlugin, OutgoingMessage, PluginNotification, TelegramPluginConfig } from "../../types.js";
+import type {
+  MessagePlugin,
+  OutgoingMessage,
+  PluginNotification,
+  TelegramPluginConfig,
+} from "../../types.js";
 import type { TelegramAdapterConfig } from "./types.js";
 import { createTelegramBot, startBot, stopBot } from "./client.js";
 import { setupMessageHandlers } from "./handlers.js";
@@ -13,7 +18,7 @@ const PLUGIN_ID = "telegram";
 
 export function create(
   pluginConfig: TelegramPluginConfig,
-  _eventBus: typeof eventBus
+  _eventBus: typeof eventBus,
 ): MessagePlugin {
   const config = pluginConfig as TelegramAdapterConfig;
   let bot: Bot | null = null;
@@ -36,21 +41,30 @@ export function create(
         });
       }
     } catch (error) {
-      logger.error({ error, chatId: message.chatId }, "Failed to send Telegram message");
+      logger.error(
+        { error, chatId: message.chatId },
+        "Failed to send Telegram message",
+      );
 
       // Fallback: try sending without formatting
       try {
         const textContent = message.content.find((c) => c.type === "text");
+
         if (textContent && textContent.type === "text") {
           await bot.api.sendMessage(message.chatId, textContent.text);
         }
       } catch (fallbackError) {
-        logger.error({ error: fallbackError, chatId: message.chatId }, "Fallback send also failed");
+        logger.error(
+          { error: fallbackError, chatId: message.chatId },
+          "Fallback send also failed",
+        );
       }
     }
   };
 
-  const handleNotification = async (notification: PluginNotification): Promise<void> => {
+  const handleNotification = async (
+    notification: PluginNotification,
+  ): Promise<void> => {
     if (notification.pluginId !== PLUGIN_ID) return;
     if (!bot) return;
 
@@ -59,12 +73,15 @@ export function create(
 
     try {
       const chatId = notification.chatId || config.notificationChatId;
+
       if (!chatId) {
         logger.warn("No chat ID for notification");
+
         return;
       }
 
       let text = textContent.text;
+
       if (notification.title) {
         text = `*${formatForTelegram(notification.title)}*\n\n${formatForTelegram(text)}`;
       } else {
@@ -111,6 +128,7 @@ export function create(
     async send(chatId: string, message: OutgoingMessage): Promise<void> {
       if (!bot) {
         logger.warn("Bot not initialized");
+
         return;
       }
 
@@ -123,13 +141,17 @@ export function create(
       });
     },
 
-    async sendNotification(chatId: string, notification: PluginNotification): Promise<void> {
+    async sendNotification(
+      chatId: string,
+      notification: PluginNotification,
+    ): Promise<void> {
       if (!bot) return;
 
       const textContent = notification.content.find((c) => c.type === "text");
       if (!textContent || textContent.type !== "text") return;
 
       let text = textContent.text;
+
       if (notification.title) {
         text = `*${formatForTelegram(notification.title)}*\n\n${formatForTelegram(text)}`;
       } else {

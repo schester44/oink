@@ -1,5 +1,6 @@
 // apps/gateway/src/plugins/chat-handler.ts
 
+import { readFile } from "fs/promises";
 import { eventBus } from "./event-bus.js";
 import { streamChat } from "../chat/service.js";
 import { logger } from "../lib/logger.js";
@@ -13,36 +14,52 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+type MessagePart =
+  | { type: "text"; text: string }
+  | { type: "image"; image: string; mimeType: string };
+
 /**
- * Convert NormalizedMessage content to ChatMessage format for the LLM.
+ * Convert NormalizedMessage content to ChatMessage parts for the LLM.
  * Handles text, images (for vision), and audio (transcription).
  */
-function buildChatMessageContent(content: MessageContent[]): string {
-  const parts: string[] = [];
+async function buildChatMessageParts(content: MessageContent[]): Promise<MessagePart[]> {
+  const parts: MessagePart[] = [];
 
   for (const item of content) {
     switch (item.type) {
       case "text":
-        parts.push(item.text);
+        parts.push({ type: "text", text: item.text });
         break;
       case "image":
-        // For now, add a note about the image. Vision support will be added later.
-        parts.push(`[Image attached: ${item.localPath}]`);
+        try {
+          // Read image file and convert to base64 data URL for vision
+          const imageBuffer = await readFile(item.localPath);
+          const base64 = imageBuffer.toString("base64");
+          parts.push({
+            type: "image",
+            image: base64,
+            mimeType: item.mimeType,
+          });
+          logger.debug({ path: item.localPath, mimeType: item.mimeType }, "Image loaded for vision");
+        } catch (error) {
+          logger.error({ error, path: item.localPath }, "Failed to read image for vision");
+          parts.push({ type: "text", text: `[Failed to load image: ${item.localPath}]` });
+        }
         break;
       case "audio":
         if (item.transcription) {
-          parts.push(`[Voice message]: ${item.transcription}`);
+          parts.push({ type: "text", text: `[Voice message]: ${item.transcription}` });
         } else {
-          parts.push(`[Audio attached: ${item.localPath}]`);
+          parts.push({ type: "text", text: `[Audio attached: ${item.localPath}]` });
         }
         break;
       case "file":
-        parts.push(`[File attached: ${item.filename}]`);
+        parts.push({ type: "text", text: `[File attached: ${item.filename}]` });
         break;
     }
   }
 
-  return parts.join("\n");
+  return parts;
 }
 
 async function handleIncoming(message: NormalizedMessage): Promise<void> {
@@ -55,10 +72,20 @@ async function handleIncoming(message: NormalizedMessage): Promise<void> {
     "Processing incoming message",
   );
 
+  // Build multimodal parts (text + images) for vision support
+  const parts = await buildChatMessageParts(message.content);
+
+  // Extract text content for backward compatibility
+  const textContent = parts
+    .filter((p): p is { type: "text"; text: string } => p.type === "text")
+    .map((p) => p.text)
+    .join("\n");
+
   const chatMessage: ChatMessage = {
     id: message.id,
     role: "user",
-    content: buildChatMessageContent(message.content),
+    content: textContent,
+    parts: parts,
   };
 
   const chatRequest: ChatRequest = {
