@@ -21,6 +21,8 @@ export type ScheduledTaskHandler = (
   notification: ScheduledTaskNotification,
 ) => void;
 
+export type SessionIdHandler = (sessionId: string) => void;
+
 /**
  * WebSocket-based chat transport for AI SDK's useChat hook.
  * Connects to the gateway via Socket.IO and streams UIMessageChunks.
@@ -32,6 +34,7 @@ export class WebSocketChatTransport implements ChatTransport<UIMessage> {
   private sessionId?: string;
   private connectionPromise: Promise<void> | null = null;
   private scheduledTaskHandler: ScheduledTaskHandler | null = null;
+  private sessionIdHandler: SessionIdHandler | null = null;
 
   constructor(options: WebSocketChatTransportOptions) {
     this.gatewayUrl = options.gatewayUrl;
@@ -45,6 +48,14 @@ export class WebSocketChatTransport implements ChatTransport<UIMessage> {
    */
   onScheduledTask(handler: ScheduledTaskHandler | null): void {
     this.scheduledTaskHandler = handler;
+  }
+
+  /**
+   * Set a handler for session ID updates.
+   * Called when the backend creates a new session and returns the actual session ID.
+   */
+  onSessionId(handler: SessionIdHandler | null): void {
+    this.sessionIdHandler = handler;
   }
 
   /**
@@ -97,6 +108,17 @@ export class WebSocketChatTransport implements ChatTransport<UIMessage> {
           console.log("[WebSocketTransport] Scheduled task received:", notification);
           if (this.scheduledTaskHandler) {
             this.scheduledTaskHandler(notification);
+          }
+        },
+      );
+
+      // Listen for session ID updates (when backend creates a new session)
+      this.socket.on(
+        "session-id",
+        (data: { sessionId: string }) => {
+          console.log("[WebSocketTransport] Session ID received:", data.sessionId);
+          if (this.sessionIdHandler) {
+            this.sessionIdHandler(data.sessionId);
           }
         },
       );

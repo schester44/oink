@@ -191,12 +191,28 @@ function ChatPage() {
       setMessages((prev) => [...prev, newMessage]);
     };
 
+    // Handler to update session ID when backend creates a new session
+    const handleSessionId = (newSessionId: string) => {
+      // Only update if this is a new session (sessionId doesn't match)
+      if (newSessionId !== sessionId) {
+        console.log("[Chat] Updating session ID:", sessionId, "->", newSessionId);
+        // Navigate to the new session ID without reloading
+        navigate({
+          to: "/chat",
+          search: { instance: instanceId, sessionId: newSessionId },
+          replace: true, // Replace history entry so back button works correctly
+        });
+      }
+    };
+
     transport.onScheduledTask(handleScheduledTask);
+    transport.onSessionId(handleSessionId);
 
     return () => {
       transport.onScheduledTask(null);
+      transport.onSessionId(null);
     };
-  }, [transport, instanceId, setMessages]);
+  }, [transport, instanceId, sessionId, setMessages, navigate]);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);

@@ -1,11 +1,15 @@
 import { useState } from "react";
 import Markdown from "react-markdown";
 import { ToolCallDisplay } from "./tool-display";
+import { GenerativeUIRenderer, shouldRenderAsGenerativeUI } from "./generative-ui/renderer";
+import { hasGenerativeUI } from "./generative-ui";
 
 type MessagePart = {
   type: string;
   text?: string;
   toolCallId?: string;
+  input?: Record<string, unknown>;
+  output?: unknown;
   [key: string]: unknown;
 };
 
@@ -31,7 +35,11 @@ export function hasVisibleContent(message: { parts?: Array<MessagePart> }, showT
       if (showToolCalls && thinking.length > 0) return true;
       return false;
     }
-    // Tool calls are visible when showToolCalls is on
+    // Generative UI parts (like weather cards) are always visible
+    if (part.type.startsWith("tool-") && hasGenerativeUI(part)) {
+      return true;
+    }
+    // Regular tool calls are visible when showToolCalls is on
     if (part.type.startsWith("tool-")) {
       return showToolCalls;
     }
@@ -120,9 +128,15 @@ export function MessageContent({
 
         // Handle tool parts (type starts with "tool-")
         if (part.type.startsWith("tool-")) {
-          if (!showToolCalls) return null;
-          // Use toolCallId for stable key, fallback to step-based key
           const key = part.toolCallId || `${message.id}-tool-${stepIndex}`;
+          
+          // Check for generative UI (always shown regardless of showToolCalls)
+          if (shouldRenderAsGenerativeUI(part)) {
+            return <GenerativeUIRenderer key={key} part={part} />;
+          }
+          
+          // Regular tool calls only shown when showToolCalls is on
+          if (!showToolCalls) return null;
           return <ToolCallDisplay key={key} part={part} />;
         }
 

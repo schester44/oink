@@ -1,4 +1,8 @@
 import { DiffViewer, PreformattedDiff, FileContentViewer } from "./diff-viewer";
+import {
+  GenerativeUIRenderer,
+  shouldRenderAsGenerativeUI,
+} from "./generative-ui/renderer";
 
 function formatOutput(value: unknown): string {
   if (typeof value === "string") {
@@ -17,13 +21,15 @@ function formatOutput(value: unknown): string {
 }
 
 // Check if output has a preformatted diff (from pi-coding-agent edit tool)
-function hasPreformattedDiff(
-  output: unknown,
-): output is { content: Array<{ type: string; text: string }>; details: { diff: string; firstChangedLine?: number } } {
+function hasPreformattedDiff(output: unknown): output is {
+  content: Array<{ type: string; text: string }>;
+  details: { diff: string; firstChangedLine?: number };
+} {
   if (!output || typeof output !== "object") return false;
   const o = output as Record<string, unknown>;
   if (!o.details || typeof o.details !== "object") return false;
   const details = o.details as Record<string, unknown>;
+
   return typeof details.diff === "string";
 }
 
@@ -37,10 +43,13 @@ function isTextContentOutput(
   const o = output as Record<string, unknown>;
   if (!Array.isArray(o.content)) return false;
   const content = o.content as Array<unknown>;
-  return content.length > 0 && 
-    typeof content[0] === "object" && 
+
+  return (
+    content.length > 0 &&
+    typeof content[0] === "object" &&
     content[0] !== null &&
-    "text" in content[0];
+    "text" in content[0]
+  );
 }
 
 function OutputBlock({
@@ -83,9 +92,8 @@ function isEditWithDiff(
 ): input is { path?: string; oldText: string; newText: string } {
   if (toolName !== "edit") return false;
   if (!input) return false;
-  return (
-    typeof input.oldText === "string" && typeof input.newText === "string"
-  );
+
+  return typeof input.oldText === "string" && typeof input.newText === "string";
 }
 
 export function ToolCallDisplay({
@@ -118,6 +126,11 @@ export function ToolCallDisplay({
     output && typeof output === "object" && "stderr" in output && output.stderr,
   );
   const hasStdStreams = hasStdout || hasStderr;
+
+  // Check for generative UI (weather, etc.) - render as rich component
+  if (shouldRenderAsGenerativeUI(part)) {
+    return <GenerativeUIRenderer part={part} />;
+  }
 
   return (
     <div className="my-2 rounded border border-border bg-muted/50 p-3 text-xs font-mono">
@@ -162,8 +175,16 @@ export function ToolCallDisplay({
           // Read/bash tool with text content
           <FileContentViewer
             content={part.output.content[0]?.text ?? ""}
-            fileName={toolName === "read" ? (part.input?.path as string | undefined) : undefined}
-            label={toolName === "bash" ? (part.input?.command as string | undefined) : undefined}
+            fileName={
+              toolName === "read"
+                ? (part.input?.path as string | undefined)
+                : undefined
+            }
+            label={
+              toolName === "bash"
+                ? (part.input?.command as string | undefined)
+                : undefined
+            }
           />
         ) : (
           <details open>

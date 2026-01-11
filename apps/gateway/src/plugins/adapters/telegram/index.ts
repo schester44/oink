@@ -16,6 +16,10 @@ import { formatForTelegram, splitMessage } from "./formatting.js";
 
 const PLUGIN_ID = "telegram";
 
+// Track active typing indicators per chat
+// Telegram typing indicators expire after ~5 seconds, so we refresh them
+const TYPING_INTERVAL_MS = 4000;
+
 export function create(
   pluginConfig: TelegramPluginConfig,
   _eventBus: typeof eventBus,
@@ -23,10 +27,76 @@ export function create(
   const config = pluginConfig as TelegramAdapterConfig;
   let bot: Bot | null = null;
 
+  // Track typing indicator intervals per chat
+  const typingIntervals = new Map<string, NodeJS.Timeout>();
+
+  const startTypingIndicator = async (chatId: string): Promise<void> => {
+    if (!bot || typingIntervals.has(chatId)) return;
+
+    // Send initial typing action
+    try {
+      await bot.api.sendChatAction(chatId, "typing");
+    } catch (error) {
+      logger.debug({ error, chatId }, "Failed to send typing indicator");
+      return;
+    }
+
+    // Set up interval to keep typing indicator alive
+    const interval = setInterval(async () => {
+      if (!bot) {
+        stopTypingIndicator(chatId);
+        return;
+      }
+      try {
+        await bot.api.sendChatAction(chatId, "typing");
+      } catch (error) {
+        logger.debug({ error, chatId }, "Failed to refresh typing indicator");
+        stopTypingIndicator(chatId);
+      }
+    }, TYPING_INTERVAL_MS);
+
+    typingIntervals.set(chatId, interval);
+  };
+
+  const stopTypingIndicator = (chatId: string): void => {
+    const interval = typingIntervals.get(chatId);
+    if (interval) {
+      clearInterval(interval);
+      typingIntervals.delete(chatId);
+    }
+  };
+
+  const stopAllTypingIndicators = (): void => {
+    for (const [chatId] of typingIntervals) {
+      stopTypingIndicator(chatId);
+    }
+  };
+
+  const handleOutgoingChunk = async (message: OutgoingMessage): Promise<void> => {
+    if (message.pluginId !== PLUGIN_ID) return;
+    if (!bot) return;
+
+    const chunk = message.rawChunk as { type: string } | undefined;
+    if (!chunk) return;
+
+    // Start typing when tool execution begins
+    if (chunk.type === "tool-input-start") {
+      await startTypingIndicator(message.chatId);
+    }
+
+    // Also start on text-start in case there's a lot of text generation
+    if (chunk.type === "text-start") {
+      await startTypingIndicator(message.chatId);
+    }
+  };
+
   const handleOutgoing = async (message: OutgoingMessage): Promise<void> => {
     if (message.pluginId !== PLUGIN_ID) return;
     if (!message.isComplete) return; // Only send complete messages
     if (!bot) return;
+
+    // Stop typing indicator when message is complete
+    stopTypingIndicator(message.chatId);
 
     const textContent = message.content.find((c) => c.type === "text");
     if (!textContent || textContent.type !== "text") return;
@@ -98,6 +168,7 @@ export function create(
 
   // Store handler references for cleanup
   const outgoingHandler = handleOutgoing;
+  const outgoingChunkHandler = handleOutgoingChunk;
   const notificationHandler = handleNotification;
 
   return {
@@ -108,6 +179,7 @@ export function create(
       setupMessageHandlers(bot, config);
 
       eventBus.on("outgoing", outgoingHandler);
+      eventBus.on("outgoing-chunk", outgoingChunkHandler);
       eventBus.on("notification", notificationHandler);
 
       await startBot(bot);
@@ -116,7 +188,10 @@ export function create(
 
     async stop(): Promise<void> {
       eventBus.off("outgoing", outgoingHandler);
+      eventBus.off("outgoing-chunk", outgoingChunkHandler);
       eventBus.off("notification", notificationHandler);
+
+      stopAllTypingIndicators();
 
       if (bot) {
         stopBot(bot);

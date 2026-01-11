@@ -21,7 +21,7 @@ import {
   type ToolDefinition,
 } from "@mariozechner/pi-coding-agent";
 import { join } from "path";
-import { existsSync, mkdirSync } from "fs";
+import { existsSync, mkdirSync, readdirSync } from "fs";
 
 import { getSessionsDir, getWorkspaceDir, config } from "../config.js";
 import { buildSystemPrompt } from "../chat/prompts.js";
@@ -39,7 +39,7 @@ export type { AgentSessionEvent };
  * These chunks are sent to the frontend and must match what useChat expects
  */
 export type StreamChunk =
-  | { type: "start"; messageId?: string }
+  | { type: "start"; messageId?: string; sessionId?: string }
   | { type: "text-start"; id: string }
   | { type: "text-delta"; id: string; delta: string }
   | { type: "text-end"; id: string }
@@ -116,15 +116,13 @@ async function getOrCreateSession(
   sourceChannel?: string,
   chatId?: string,
 ): Promise<AgentSession> {
-  const cacheKey = sessionId || `new:${instanceId}:${Date.now()}`;
-
-  // Check cache
-  const cached = activeSessions.get(cacheKey);
-
-  if (cached && cached.instanceId === instanceId) {
-    cached.lastUsed = Date.now();
-
-    return cached.session;
+  // Check cache first using the provided sessionId
+  if (sessionId) {
+    const cached = activeSessions.get(sessionId);
+    if (cached && cached.instanceId === instanceId) {
+      cached.lastUsed = Date.now();
+      return cached.session;
+    }
   }
 
   // Initialize brain files
@@ -179,10 +177,14 @@ async function getOrCreateSession(
   >;
 
   if (sessionId) {
-    // Try to open existing session
-    const sessionPath = join(sessionsDir, `${sessionId}.jsonl`);
+    // Try to find existing session by ID (UUID is in filename)
+    const sessionFiles = existsSync(sessionsDir)
+      ? readdirSync(sessionsDir).filter((f) => f.endsWith(".jsonl"))
+      : [];
+    const sessionFile = sessionFiles.find((f) => f.includes(sessionId));
 
-    if (existsSync(sessionPath)) {
+    if (sessionFile) {
+      const sessionPath = join(sessionsDir, sessionFile);
       sessionManager = SessionManager.open(sessionPath);
     } else {
       // Create new session (custom directory)
@@ -298,10 +300,14 @@ export async function* streamChat(
 
       switch (event.type) {
         case "agent_start":
-          // Emit start chunk at the very beginning
+          // Emit start chunk at the very beginning with the actual session ID
           if (!streamStarted) {
             streamStarted = true;
-            emitChunk({ type: "start", messageId });
+            emitChunk({
+              type: "start",
+              messageId,
+              sessionId: session.sessionId,
+            });
           }
           break;
 

@@ -100,6 +100,13 @@ export function createChunkHandler(
     if (message.rawChunk) {
       logger.debug({ chunk: message.rawChunk }, "Emitting chat-chunk");
       socket.emit("chat-chunk", message.rawChunk);
+      
+      // If this is a start chunk with sessionId, emit a separate session-id event
+      // This allows the frontend to update its sessionId to match the actual session
+      const chunk = message.rawChunk as { type?: string; sessionId?: string };
+      if (chunk.type === "start" && chunk.sessionId) {
+        socket.emit("session-id", { sessionId: chunk.sessionId });
+      }
     }
   };
 }
