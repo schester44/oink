@@ -40,7 +40,7 @@ function ConfigLayout() {
         <SidebarHeader>
           <Link to="/chat" search={{ sessionId: undefined, instance: undefined }} className="flex items-center gap-2 px-2 py-1">
             <span className="text-2xl">🐷</span>
-            <span className="font-semibold">Oinky</span>
+            <span className="font-semibold">Pinky</span>
           </Link>
         </SidebarHeader>
         <SidebarContent>

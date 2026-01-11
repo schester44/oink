@@ -187,7 +187,7 @@ class FileBackedMeterProvider implements MeterProvider {
 // --- Singleton Instance ---
 
 const meterProvider = new FileBackedMeterProvider();
-const meter = meterProvider.getMeter("oink-llm");
+const meter = meterProvider.getMeter("pinky-llm");
 
 // Pre-created instruments for convenience
 export const llmRequestCounter = meter.createCounter("llm.requests", {

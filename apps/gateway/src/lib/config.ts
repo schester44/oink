@@ -20,7 +20,7 @@ function ensureDir(dir: string): void {
 }
 
 export function createConfig(): GatewayConfig {
-  const dataDir = process.env.GATEWAY_DATA_DIR || join(homedir(), ".oinky");
+  const dataDir = process.env.GATEWAY_DATA_DIR || join(homedir(), ".pinky");
 
   return {
     dataDir,

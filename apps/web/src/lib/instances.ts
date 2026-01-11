@@ -3,7 +3,7 @@ import { z } from "zod";
 import { trpcServer } from "./trpc-server";
 
 // Re-export the Instance type from the shared package
-export type { Instance } from "@oink/trpc";
+export type { Instance } from "@pinky/trpc";
 
 export const getInstancesServerFn = createServerFn({ method: "GET" }).handler(
   async () => {

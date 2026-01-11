@@ -3,7 +3,7 @@ import { z } from "zod";
 import { trpcServer } from "./trpc-server";
 
 // Re-export the SessionInfo type from the shared package
-export type { SessionInfo } from "@oink/trpc";
+export type { SessionInfo } from "@pinky/trpc";
 
 const getSessionsSchema = z
   .object({

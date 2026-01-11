@@ -952,7 +952,7 @@ Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>"
 **Step 1: Add telegraf dependency**
 
 ```bash
-cd /Users/schester/work/oink/apps/gateway && yarn add telegraf
+cd /Users/schester/work/pinky/apps/gateway && yarn add telegraf
 ```
 
 **Step 2: Write Telegram types**
@@ -1608,7 +1608,7 @@ import { startTRPCServer, stopTRPCServer } from "./trpc/server.js";
 import { pluginRegistry, startChatHandler, stopChatHandler } from "./plugins/index.js";
 
 async function startGateway() {
-  logger.info("Starting Oink Gateway");
+  logger.info("Starting Pinky Gateway");
 
   // Start chat handler (bridges event bus to LLM)
   startChatHandler();
@@ -1631,7 +1631,7 @@ async function startGateway() {
     );
   }, 60000);
 
-  logger.info("Oink Gateway started successfully");
+  logger.info("Pinky Gateway started successfully");
 }
 
 async function shutdown() {
@@ -1704,7 +1704,7 @@ Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>"
 
 **Step 2: Update README or add setup instructions**
 
-Add a note in the gateway package about copying and configuring `plugins.example.json` to `~/.oinky/plugins.json`.
+Add a note in the gateway package about copying and configuring `plugins.example.json` to `~/.pinky/plugins.json`.
 
 **Step 3: Commit**
 
@@ -1792,7 +1792,7 @@ Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>"
 **Step 1: Start the gateway and verify WebSocket still works**
 
 ```bash
-cd /Users/schester/work/oink/apps/gateway && yarn dev
+cd /Users/schester/work/pinky/apps/gateway && yarn dev
 ```
 
 Verify:
@@ -1802,7 +1802,7 @@ Verify:
 
 **Step 2: Create a test plugins.json with Telegram enabled**
 
-Create `~/.oinky/plugins.json`:
+Create `~/.pinky/plugins.json`:
 ```json
 {
   "plugins": {

@@ -3,7 +3,7 @@ import { z } from "zod";
 import { trpcServer } from "./trpc-server";
 
 // Re-export the UserSettings type from the shared package
-export type { UserSettings } from "@oink/trpc";
+export type { UserSettings } from "@pinky/trpc";
 
 export const getSettingsServerFn = createServerFn({ method: "GET" }).handler(
   async () => {

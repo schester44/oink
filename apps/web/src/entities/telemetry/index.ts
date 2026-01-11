@@ -1,2 +1,2 @@
 // Re-export MetricsData type from the shared package
-export type { MetricsData } from "@oink/trpc";
+export type { MetricsData } from "@pinky/trpc";

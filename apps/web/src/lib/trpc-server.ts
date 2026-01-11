@@ -1,6 +1,6 @@
 import { createTRPCClient, httpBatchLink } from "@trpc/client";
 import superjson from "superjson";
-import type { AppRouter } from "@oink/trpc";
+import type { AppRouter } from "@pinky/trpc";
 
 // Server-side tRPC client that calls the gateway directly
 const GATEWAY_TRPC_URL =

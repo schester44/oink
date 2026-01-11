@@ -1,5 +1,5 @@
 {
-  "name": "@oink/gateway",
+  "name": "@pinky/gateway",
   "version": "0.1.0",
   "type": "module",
   "main": "dist/index.js",
@@ -12,10 +12,11 @@
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.9",
-    "@oink/trpc": "workspace:*",
+    "@pinky/trpc": "workspace:*",
     "@trpc/server": "^11.1.0",
     "ai": "^6.0.25",
     "chokidar": "^5.0.0",
+    "grammy": "^1.39.2",
     "gray-matter": "^4.0.3",
     "node-cron": "^4.2.1",
     "pino": "^9.6.0",

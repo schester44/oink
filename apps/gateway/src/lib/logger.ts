@@ -29,7 +29,7 @@ if (isDev) {
 export const logger = pino(
   {
     base: {
-      service: "oink-gateway",
+      service: "pinky-gateway",
     },
     level: process.env.LOG_LEVEL || "debug",
     timestamp: pino.stdTimeFunctions.isoTime,

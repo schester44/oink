@@ -13,7 +13,7 @@ import {
   type MetricsData,
   type HealthStatus,
   type UserSettings,
-} from "@oink/trpc";
+} from "@pinky/trpc";
 import {
   existsSync,
   mkdirSync,

@@ -306,7 +306,7 @@ function ChatPage() {
       <header className="flex items-center justify-between border-b px-4 py-3">
         <div className="flex items-center gap-2">
           <span className="text-2xl">🐷</span>
-          <h1 className="text-lg font-semibold">Oinky</h1>
+          <h1 className="text-lg font-semibold">Pinky</h1>
         </div>
         <div className="flex items-center gap-2">
           <Select

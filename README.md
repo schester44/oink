@@ -1,10 +1,10 @@
-# 🐽 Oinky
+# 🐽 Pinky
 
 Your personal assistant
 
-## What is Oinky?
+## What is Pinky?
 
-Oinky is a personal AI assistant designed to be genuinely helpful, not just performatively helpful. No "Great question!" fluff - just real assistance with your daily tasks, projects, and digital life.
+Pinky is a personal AI assistant designed to be genuinely helpful, not just performatively helpful. No "Great question!" fluff - just real assistance with your daily tasks, projects, and digital life.
 
 ## Features
 
@@ -16,7 +16,7 @@ Oinky is a personal AI assistant designed to be genuinely helpful, not just perf
 
 ## Philosophy
 
-Oinky believes in:
+Pinky believes in:
 
 - Being a guest in your digital space (respectful access)
 - Earning trust through competence, not cheerfulness
@@ -25,4 +25,4 @@ Oinky believes in:
 
 ---
 
-_Oinko: Because you deserve an assistant that's actually good at assisting._
+_Pinky: Because you deserve an assistant that's actually good at assisting._

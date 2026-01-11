@@ -1,6 +1,6 @@
 import { createTRPCClient, httpBatchLink } from "@trpc/client";
 import superjson from "superjson";
-import type { AppRouter } from "@oink/trpc";
+import type { AppRouter } from "@pinky/trpc";
 
 // Client-side tRPC client that calls the web app's proxy endpoint
 export const trpc = createTRPCClient<AppRouter>({
@@ -13,10 +13,10 @@ export const trpc = createTRPCClient<AppRouter>({
 });
 
 // Re-export types for convenience
-export type { AppRouter } from "@oink/trpc";
+export type { AppRouter } from "@pinky/trpc";
 export type {
   Instance,
   SessionInfo,
   MetricsData,
   HealthStatus,
-} from "@oink/trpc";
+} from "@pinky/trpc";

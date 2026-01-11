@@ -18,7 +18,7 @@
 **Step 1: Add required dependencies**
 
 ```bash
-cd /Users/schester/work/oink/.worktrees/scheduled-tasks/apps/gateway
+cd /Users/schester/work/pinky/.worktrees/scheduled-tasks/apps/gateway
 yarn add node-cron socket.io chokidar gray-matter ai @ai-sdk/anthropic uuid
 yarn add -D @types/node-cron @types/uuid
 ```
@@ -984,7 +984,7 @@ import { startScheduler, stopScheduler, getSchedulerStats } from "./lib/tasks/sc
 import { startWebSocketServer, stopWebSocketServer, getWebSocketStats } from "./lib/websocket.js";
 
 async function startGateway() {
-  logger.info("Starting Oink Gateway");
+  logger.info("Starting Pinky Gateway");
 
   // Start WebSocket server
   startWebSocketServer();
@@ -999,7 +999,7 @@ async function startGateway() {
     logger.debug({ scheduler: schedulerStats, websocket: wsStats }, "Gateway stats");
   }, 60000);
 
-  logger.info("Oink Gateway started successfully");
+  logger.info("Pinky Gateway started successfully");
 }
 
 async function shutdown() {
@@ -1116,8 +1116,8 @@ git commit -m "chore(gateway): ignore data directory"
 **Step 1: Build the gateway**
 
 ```bash
-cd /Users/schester/work/oink/.worktrees/scheduled-tasks
-yarn workspace @oink/gateway build
+cd /Users/schester/work/pinky/.worktrees/scheduled-tasks
+yarn workspace @pinky/gateway build
 ```
 
 Expected: Build succeeds
@@ -1130,11 +1130,11 @@ yarn dev
 ```
 
 Expected output should include:
-- "Starting Oink Gateway"
+- "Starting Pinky Gateway"
 - "WebSocket server started" with port
 - "Loaded tasks for instance"
 - "Scheduler started"
-- "Oink Gateway started successfully"
+- "Pinky Gateway started successfully"
 
 **Step 3: Verify with curl or wscat**
 

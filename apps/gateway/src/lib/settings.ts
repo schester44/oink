@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "fs";
 import { join } from "path";
 import { config } from "../config.js";
-import type { UserSettings } from "@oink/trpc";
+import type { UserSettings } from "@pinky/trpc";
 
 function getUserDir(): string {
   return join(config.dataDir, "user");
