@@ -1,4 +1,4 @@
-import { DiffViewer } from "./diff-viewer";
+import { DiffViewer, PreformattedDiff, FileContentViewer } from "./diff-viewer";
 
 function formatOutput(value: unknown): string {
   if (typeof value === "string") {
@@ -14,6 +14,33 @@ function formatOutput(value: unknown): string {
   }
 
   return JSON.stringify(value, null, 2);
+}
+
+// Check if output has a preformatted diff (from pi-coding-agent edit tool)
+function hasPreformattedDiff(
+  output: unknown,
+): output is { content: Array<{ type: string; text: string }>; details: { diff: string; firstChangedLine?: number } } {
+  if (!output || typeof output !== "object") return false;
+  const o = output as Record<string, unknown>;
+  if (!o.details || typeof o.details !== "object") return false;
+  const details = o.details as Record<string, unknown>;
+  return typeof details.diff === "string";
+}
+
+// Check if output is from read/bash tool (has content array with text)
+function isTextContentOutput(
+  toolName: string,
+  output: unknown,
+): output is { content: Array<{ type: string; text: string }> } {
+  if (toolName !== "read" && toolName !== "bash") return false;
+  if (!output || typeof output !== "object") return false;
+  const o = output as Record<string, unknown>;
+  if (!Array.isArray(o.content)) return false;
+  const content = o.content as Array<unknown>;
+  return content.length > 0 && 
+    typeof content[0] === "object" && 
+    content[0] !== null &&
+    "text" in content[0];
 }
 
 function OutputBlock({
@@ -120,52 +147,72 @@ export function ToolCallDisplay({
         )
       ) : null}
       {part.output !== undefined ? (
-        <details open>
-          <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
-            Output
-          </summary>
-          {hasStdStreams && output ? (
-            <div className="space-y-2">
-              {hasStdout && (
-                <OutputBlock
-                  label="stdout"
-                  content={formatOutput(output.stdout as string)}
-                  variant="stdout"
-                />
-              )}
-              {hasStderr && (
-                <OutputBlock
-                  label="stderr"
-                  content={formatOutput(output.stderr as string)}
-                  variant="stderr"
-                />
-              )}
-              {(() => {
-                const rest = Object.fromEntries(
-                  Object.entries(output).filter(
-                    ([key]) => key !== "stdout" && key !== "stderr",
-                  ),
-                );
-
-                if (Object.keys(rest).length > 0) {
-                  return (
-                    <OutputBlock
-                      label="other"
-                      content={formatOutput(rest)}
-                      variant="default"
-                    />
-                  );
-                }
-
-                return null;
-              })()}
+        hasPreformattedDiff(part.output) ? (
+          // Edit tool with preformatted diff from pi-coding-agent
+          <div className="mt-2">
+            <div className="text-muted-foreground text-xs mb-1">
+              {part.output.content?.[0]?.text}
             </div>
-          ) : (
-            <pre className="mt-1 overflow-x-auto whitespace-pre-wrap text-xs">
-              {formatOutput(part.output)}
-            </pre>
-          )}
-        </details>
+            <PreformattedDiff
+              diff={part.output.details.diff}
+              fileName={part.input?.path as string | undefined}
+            />
+          </div>
+        ) : isTextContentOutput(toolName, part.output) ? (
+          // Read/bash tool with text content
+          <FileContentViewer
+            content={part.output.content[0]?.text ?? ""}
+            fileName={toolName === "read" ? (part.input?.path as string | undefined) : undefined}
+            label={toolName === "bash" ? (part.input?.command as string | undefined) : undefined}
+          />
+        ) : (
+          <details open>
+            <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
+              Output
+            </summary>
+            {hasStdStreams && output ? (
+              <div className="space-y-2">
+                {hasStdout && (
+                  <OutputBlock
+                    label="stdout"
+                    content={formatOutput(output.stdout as string)}
+                    variant="stdout"
+                  />
+                )}
+                {hasStderr && (
+                  <OutputBlock
+                    label="stderr"
+                    content={formatOutput(output.stderr as string)}
+                    variant="stderr"
+                  />
+                )}
+                {(() => {
+                  const rest = Object.fromEntries(
+                    Object.entries(output).filter(
+                      ([key]) => key !== "stdout" && key !== "stderr",
+                    ),
+                  );
+
+                  if (Object.keys(rest).length > 0) {
+                    return (
+                      <OutputBlock
+                        label="other"
+                        content={formatOutput(rest)}
+                        variant="default"
+                      />
+                    );
+                  }
+
+                  return null;
+                })()}
+              </div>
+            ) : (
+              <pre className="mt-1 overflow-x-auto whitespace-pre-wrap text-xs">
+                {formatOutput(part.output)}
+              </pre>
+            )}
+          </details>
+        )
       ) : null}
     </div>
   );

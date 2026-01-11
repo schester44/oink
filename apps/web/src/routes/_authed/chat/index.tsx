@@ -29,7 +29,9 @@ import {
   type SessionInfo,
 } from "@/lib/sessions";
 import { getMetricsServerFn } from "@/entities/telemetry/actions/get-metrics";
+import { getHealthServerFn } from "@/lib/health";
 import { MetricsWidget } from "./-components/metrics-widget";
+import { GatewayStatus } from "./-components/gateway-status";
 import { InstanceTabs } from "./-components/instance-tabs";
 import {
   getInstancesServerFn,
@@ -44,6 +46,25 @@ import {
 } from "@/lib/websocket-transport";
 
 const DEFAULT_INSTANCE_ID = "default";
+const SESSION_STORAGE_KEY = "pinky-current-session";
+
+function getStoredSessionId(): string | undefined {
+  if (typeof window === "undefined") return undefined;
+  try {
+    return localStorage.getItem(SESSION_STORAGE_KEY) || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function storeSessionId(sessionId: string): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(SESSION_STORAGE_KEY, sessionId);
+  } catch {
+    // Ignore storage errors
+  }
+}
 
 export const Route = createFileRoute("/_authed/chat/")({
   component: ChatPage,
@@ -55,14 +76,16 @@ export const Route = createFileRoute("/_authed/chat/")({
     const searchParams = new URLSearchParams(location.search);
     const instanceId = searchParams.get("instance") || DEFAULT_INSTANCE_ID;
 
-    const [showToolCalls, sessions, metrics, instances] = await Promise.all([
-      getShowToolCallsServerFn(),
-      getSessionsServerFn({ data: { instanceId } }),
-      getMetricsServerFn(),
-      getInstancesServerFn(),
-    ]);
+    const [showToolCalls, sessions, metrics, instances, health] =
+      await Promise.all([
+        getShowToolCallsServerFn(),
+        getSessionsServerFn({ data: { instanceId } }),
+        getMetricsServerFn(),
+        getInstancesServerFn(),
+        getHealthServerFn(),
+      ]);
 
-    return { showToolCalls, sessions, metrics, instances, instanceId };
+    return { showToolCalls, sessions, metrics, instances, health, instanceId };
   },
 });
 
@@ -74,10 +97,18 @@ function ChatPage() {
     sessions: initialSessions,
     metrics: initialMetrics,
     instances: initialInstances,
+    health: initialHealth,
     instanceId: loaderInstanceId,
   } = route.useLoaderData();
-  const sessionId = urlSessionId || "main";
+  const sessionId = urlSessionId || getStoredSessionId() || "main";
   const instanceId = urlInstance || loaderInstanceId;
+
+  // Store session ID in localStorage whenever it changes
+  useEffect(() => {
+    if (sessionId) {
+      storeSessionId(sessionId);
+    }
+  }, [sessionId]);
 
   const [instances, setInstances] = useState<Instance[]>(initialInstances);
   const [sessions, setSessions] = useState<SessionInfo[]>(initialSessions);
@@ -303,9 +334,12 @@ function ChatPage() {
         onDelete={handleDeleteInstance}
       />
       <header className="flex items-center justify-between border-b px-4 py-3">
-        <div className="flex items-center gap-2">
-          <span className="text-2xl">🐷</span>
-          <h1 className="text-lg font-semibold">Pinky</h1>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <span className="text-2xl">🐷</span>
+            <h1 className="text-lg font-semibold">Pinky</h1>
+          </div>
+          <GatewayStatus initialHealth={initialHealth} />
         </div>
         <div className="flex items-center gap-2">
           <Select
@@ -325,7 +359,8 @@ function ChatPage() {
             <SelectContent>
               {sessions.map((session) => (
                 <SelectItem key={session.id} value={session.id}>
-                  {session.name}
+                  {session.firstMessage.slice(0, 50)}
+                  {session.firstMessage.length > 50 ? "..." : ""}
                 </SelectItem>
               ))}
             </SelectContent>

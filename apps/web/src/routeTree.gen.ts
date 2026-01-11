@@ -15,6 +15,7 @@ import { Route as AuthedConfigRouteImport } from './routes/_authed/config'
 import { Route as AuthedConfigIndexRouteImport } from './routes/_authed/config/index'
 import { Route as AuthedChatIndexRouteImport } from './routes/_authed/chat/index'
 import { Route as AuthedConfigPreferencesRouteImport } from './routes/_authed/config/preferences'
+import { Route as AuthedConfigPluginsRouteImport } from './routes/_authed/config/plugins'
 import { Route as AuthedConfigGatewayRouteImport } from './routes/_authed/config/gateway'
 
 const AuthedRoute = AuthedRouteImport.update({
@@ -46,6 +47,11 @@ const AuthedConfigPreferencesRoute = AuthedConfigPreferencesRouteImport.update({
   path: '/preferences',
   getParentRoute: () => AuthedConfigRoute,
 } as any)
+const AuthedConfigPluginsRoute = AuthedConfigPluginsRouteImport.update({
+  id: '/plugins',
+  path: '/plugins',
+  getParentRoute: () => AuthedConfigRoute,
+} as any)
 const AuthedConfigGatewayRoute = AuthedConfigGatewayRouteImport.update({
   id: '/gateway',
   path: '/gateway',
@@ -56,6 +62,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/config': typeof AuthedConfigRouteWithChildren
   '/config/gateway': typeof AuthedConfigGatewayRoute
+  '/config/plugins': typeof AuthedConfigPluginsRoute
   '/config/preferences': typeof AuthedConfigPreferencesRoute
   '/chat': typeof AuthedChatIndexRoute
   '/config/': typeof AuthedConfigIndexRoute
@@ -63,6 +70,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/config/gateway': typeof AuthedConfigGatewayRoute
+  '/config/plugins': typeof AuthedConfigPluginsRoute
   '/config/preferences': typeof AuthedConfigPreferencesRoute
   '/chat': typeof AuthedChatIndexRoute
   '/config': typeof AuthedConfigIndexRoute
@@ -73,6 +81,7 @@ export interface FileRoutesById {
   '/_authed': typeof AuthedRouteWithChildren
   '/_authed/config': typeof AuthedConfigRouteWithChildren
   '/_authed/config/gateway': typeof AuthedConfigGatewayRoute
+  '/_authed/config/plugins': typeof AuthedConfigPluginsRoute
   '/_authed/config/preferences': typeof AuthedConfigPreferencesRoute
   '/_authed/chat/': typeof AuthedChatIndexRoute
   '/_authed/config/': typeof AuthedConfigIndexRoute
@@ -83,17 +92,25 @@ export interface FileRouteTypes {
     | '/'
     | '/config'
     | '/config/gateway'
+    | '/config/plugins'
     | '/config/preferences'
     | '/chat'
     | '/config/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/config/gateway' | '/config/preferences' | '/chat' | '/config'
+  to:
+    | '/'
+    | '/config/gateway'
+    | '/config/plugins'
+    | '/config/preferences'
+    | '/chat'
+    | '/config'
   id:
     | '__root__'
     | '/'
     | '/_authed'
     | '/_authed/config'
     | '/_authed/config/gateway'
+    | '/_authed/config/plugins'
     | '/_authed/config/preferences'
     | '/_authed/chat/'
     | '/_authed/config/'
@@ -148,6 +165,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedConfigPreferencesRouteImport
       parentRoute: typeof AuthedConfigRoute
     }
+    '/_authed/config/plugins': {
+      id: '/_authed/config/plugins'
+      path: '/plugins'
+      fullPath: '/config/plugins'
+      preLoaderRoute: typeof AuthedConfigPluginsRouteImport
+      parentRoute: typeof AuthedConfigRoute
+    }
     '/_authed/config/gateway': {
       id: '/_authed/config/gateway'
       path: '/gateway'
@@ -160,12 +184,14 @@ declare module '@tanstack/react-router' {
 
 interface AuthedConfigRouteChildren {
   AuthedConfigGatewayRoute: typeof AuthedConfigGatewayRoute
+  AuthedConfigPluginsRoute: typeof AuthedConfigPluginsRoute
   AuthedConfigPreferencesRoute: typeof AuthedConfigPreferencesRoute
   AuthedConfigIndexRoute: typeof AuthedConfigIndexRoute
 }
 
 const AuthedConfigRouteChildren: AuthedConfigRouteChildren = {
   AuthedConfigGatewayRoute: AuthedConfigGatewayRoute,
+  AuthedConfigPluginsRoute: AuthedConfigPluginsRoute,
   AuthedConfigPreferencesRoute: AuthedConfigPreferencesRoute,
   AuthedConfigIndexRoute: AuthedConfigIndexRoute,
 }

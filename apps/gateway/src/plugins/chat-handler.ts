@@ -2,10 +2,9 @@
 
 import { readFile } from "fs/promises";
 import { eventBus } from "./event-bus.js";
-import { streamChat } from "../chat/service.js";
+import { streamChat, type StreamChunk, type ChatRequest } from "../agent/agent-service.js";
 import { logger } from "../lib/logger.js";
 import type { NormalizedMessage, MessageContent } from "./types.js";
-import type { ChatRequest, ChatMessage } from "../chat/types.js";
 
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 1000;
@@ -81,17 +80,15 @@ async function handleIncoming(message: NormalizedMessage): Promise<void> {
     .map((p) => p.text)
     .join("\n");
 
-  const chatMessage: ChatMessage = {
-    id: message.id,
-    role: "user",
-    content: textContent,
-    parts: parts,
-  };
-
   const chatRequest: ChatRequest = {
     sessionId: message.sessionId,
     instanceId: message.instanceId,
-    message: chatMessage,
+    message: {
+      id: message.id,
+      role: "user",
+      content: textContent,
+      parts: parts,
+    },
     sourceChannel: message.pluginId,
     chatId: message.chatId,
   };
@@ -104,7 +101,7 @@ async function handleIncoming(message: NormalizedMessage): Promise<void> {
       for await (const chunk of streamChat(chatRequest)) {
         // Collect text for final message
         if (chunk.type === "text-delta") {
-          collectedText.push(chunk.delta);
+          collectedText.push(chunk.delta as string);
         }
 
         // Emit streaming chunks with raw chunk for WebSocket passthrough
@@ -115,7 +112,7 @@ async function handleIncoming(message: NormalizedMessage): Promise<void> {
           content: [
             {
               type: "text",
-              text: chunk.type === "text-delta" ? chunk.delta : "",
+              text: chunk.type === "text-delta" ? (chunk.delta as string) : "",
             },
           ],
           isStreaming: true,

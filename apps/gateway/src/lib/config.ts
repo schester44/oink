@@ -27,7 +27,7 @@ export function createConfig(): GatewayConfig {
     templatesDir: join(fileURLToPath(import.meta.url), "../../brain/templates"),
     systemSkillsDir: join(
       fileURLToPath(import.meta.url),
-      "../brain/system-skills",
+      "../../brain/system-skills",
     ),
 
     defaultInstance: process.env.GATEWAY_DEFAULT_INSTANCE || "default",
@@ -67,6 +67,13 @@ export function getArchiveTasksDir(
 
 export function getBrainDir(config: GatewayConfig, instance: string): string {
   return join(getInstanceDir(config, instance), "brain");
+}
+
+export function getSessionsDir(
+  config: GatewayConfig,
+  instance: string,
+): string {
+  return join(getInstanceDir(config, instance), "sessions");
 }
 
 export function ensureInstanceDirs(

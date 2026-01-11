@@ -10,6 +10,7 @@ import {
   startChatHandler,
   stopChatHandler,
 } from "./plugins/index.js";
+import { disposeAllSessions } from "./agent/agent-service.js";
 
 async function startGateway() {
   logger.info("Starting Pinky Gateway");
@@ -35,21 +36,53 @@ async function startGateway() {
   logger.info("Pinky Gateway started successfully");
 }
 
+let isShuttingDown = false;
+
 async function shutdown() {
+  console.log("SHUTDOWN INITIATED");
+  // Prevent multiple shutdown attempts
+  if (isShuttingDown) {
+    logger.debug("Shutdown already in progress");
+
+    return;
+  }
+  isShuttingDown = true;
+
   logger.info("Shutting down gateway");
 
-  await stopScheduler();
-  await pluginRegistry.stopAll();
-  stopChatHandler();
-  await stopTRPCServer();
+  // Set a timeout to force exit if shutdown takes too long
+  const forceExitTimeout = setTimeout(() => {
+    logger.warn("Shutdown timeout - forcing exit");
+    process.exit(1);
+  }, 5000);
 
-  logger.info("Gateway shutdown complete");
-  process.exit(0);
+  try {
+    await stopScheduler();
+    await pluginRegistry.stopAll();
+    stopChatHandler();
+    disposeAllSessions();
+    await stopTRPCServer();
+
+    clearTimeout(forceExitTimeout);
+    logger.info("Gateway shutdown complete");
+    process.exit(0);
+  } catch (error) {
+    clearTimeout(forceExitTimeout);
+    logger.error({ error }, "Error during shutdown");
+    process.exit(1);
+  }
 }
 
 // Graceful shutdown handlers
 process.on("SIGTERM", shutdown);
 process.on("SIGINT", shutdown);
+process.on("SIGHUP", shutdown);
+
+// tsx watch sends SIGUSR2 before restart
+process.on("SIGUSR2", async () => {
+  logger.info("Received SIGUSR2 (tsx watch restart)");
+  await shutdown();
+});
 
 // Global error handlers
 process.on("uncaughtException", (error) => {

@@ -98,6 +98,7 @@ export function createChunkHandler(
 
     // Pass through raw UIMessageChunk for AI SDK compatibility
     if (message.rawChunk) {
+      logger.debug({ chunk: message.rawChunk }, "Emitting chat-chunk");
       socket.emit("chat-chunk", message.rawChunk);
     }
   };

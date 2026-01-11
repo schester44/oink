@@ -20,10 +20,15 @@ export const deleteInstanceInputSchema = z.object({
 });
 
 // Session schemas
+// Matches pi-coding-agent's SessionInfo format
 export const sessionInfoSchema = z.object({
+  path: z.string(),
   id: z.string(),
-  name: z.string(),
-  timestamp: z.string(),
+  created: z.date(),
+  modified: z.date(),
+  messageCount: z.number(),
+  firstMessage: z.string(),
+  allMessagesText: z.string(),
 });
 
 export const getSessionsInputSchema = z.object({
@@ -76,6 +81,22 @@ export const userSettingsSchema = z.object({
 
 export const updateSettingsInputSchema = userSettingsSchema.partial();
 
+// Plugin schemas
+export const pluginConfigSchema = z
+  .object({
+    enabled: z.boolean(),
+  })
+  .catchall(z.any());
+
+export const pluginsConfigSchema = z.object({
+  plugins: z.record(z.string(), pluginConfigSchema),
+});
+
+export const updatePluginInputSchema = z.object({
+  pluginId: z.string(),
+  enabled: z.boolean(),
+});
+
 // Type exports
 export type Instance = z.infer<typeof instanceSchema>;
 export type CreateInstanceInput = z.infer<typeof createInstanceInputSchema>;
@@ -92,3 +113,7 @@ export type HealthStatus = z.infer<typeof healthStatusSchema>;
 
 export type UserSettings = z.infer<typeof userSettingsSchema>;
 export type UpdateSettingsInput = z.infer<typeof updateSettingsInputSchema>;
+
+export type PluginConfig = z.infer<typeof pluginConfigSchema>;
+export type PluginsConfig = z.infer<typeof pluginsConfigSchema>;
+export type UpdatePluginInput = z.infer<typeof updatePluginInputSchema>;

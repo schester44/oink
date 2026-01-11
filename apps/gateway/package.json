@@ -5,14 +5,17 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "tsup",
-    "dev": "tsx watch --env-file=.env src/index.ts",
+    "dev": "tsx watch --env-file=.env --include $HOME/.pinky/plugins.json src/index.ts",
     "start": "node --env-file=.env dist/index.js",
     "lint": "eslint src/",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.9",
+    "@mariozechner/pi-ai": "^0.42.5",
+    "@mariozechner/pi-coding-agent": "^0.42.5",
     "@pinky/trpc": "workspace:*",
+    "@sinclair/typebox": "^0.34.0",
     "@trpc/server": "^11.1.0",
     "ai": "^6.0.25",
     "chokidar": "^5.0.0",

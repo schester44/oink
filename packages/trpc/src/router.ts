@@ -14,6 +14,8 @@ import {
   healthStatusSchema,
   userSettingsSchema,
   updateSettingsInputSchema,
+  pluginsConfigSchema,
+  updatePluginInputSchema,
 } from "./schemas";
 
 // Initialize tRPC - this creates the procedure builders
@@ -113,6 +115,18 @@ export const appRouterDefinition = router({
     update: publicProcedure
       .input(updateSettingsInputSchema)
       .output(userSettingsSchema)
+      .mutation(() => {
+        throw new Error("Not implemented - use gateway");
+      }),
+  }),
+
+  plugins: router({
+    list: publicProcedure.output(pluginsConfigSchema).query(() => {
+      throw new Error("Not implemented - use gateway");
+    }),
+    update: publicProcedure
+      .input(updatePluginInputSchema)
+      .output(pluginsConfigSchema)
       .mutation(() => {
         throw new Error("Not implemented - use gateway");
       }),

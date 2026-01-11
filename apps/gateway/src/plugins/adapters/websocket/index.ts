@@ -95,12 +95,35 @@ export function create(
         eventBus.off("outgoing-chunk", chunkHandler);
         eventBus.off("notification", notificationHandler);
 
+        // Disconnect all sockets first
+        for (const [, socket] of sockets) {
+          socket.disconnect(true);
+        }
+        sockets.clear();
+
         if (io) {
           io.close(() => {
+            // Explicitly close the HTTP server to release the port
+            if (httpServer) {
+              // Force close all connections (Node 18.2+)
+              httpServer.closeAllConnections?.();
+              httpServer.close(() => {
+                logger.info("WebSocket plugin stopped");
+                io = null;
+                httpServer = null;
+                resolve();
+              });
+            } else {
+              logger.info("WebSocket plugin stopped");
+              io = null;
+              resolve();
+            }
+          });
+        } else if (httpServer) {
+          httpServer.closeAllConnections?.();
+          httpServer.close(() => {
             logger.info("WebSocket plugin stopped");
-            io = null;
             httpServer = null;
-            sockets.clear();
             resolve();
           });
         } else {

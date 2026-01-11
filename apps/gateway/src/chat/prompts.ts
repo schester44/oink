@@ -1,6 +1,6 @@
 // Build system prompts from brain files
 
-import { readFileSync, existsSync, readdirSync } from "fs";
+import { readFileSync, existsSync, readdirSync, statSync } from "fs";
 import { join } from "path";
 import matter from "gray-matter";
 
@@ -24,34 +24,47 @@ function loadTemplate(filename: string, workspaceDir: string) {
   }
 }
 
-function loadSkillsFromDir(skillsDir: string) {
+function loadSkillsFromDir(
+  skillsDir: string,
+  depth: number = 0,
+): {
+  content: string;
+  path: string;
+  name: string;
+  description: string;
+}[] {
+  const MAX_DEPTH = 3;
+
   if (!existsSync(skillsDir)) return [];
 
-  const skillFiles = readdirSync(skillsDir).filter((file: string) =>
-    file.endsWith(".md"),
-  );
-
-  const skills = skillFiles
-    .map((file: string) => {
-      const path = join(skillsDir, file);
-      const contents = readFileSync(path, "utf-8");
-      const { content, data } = matter(contents);
-
-      if (!data.name || !data.description) return null;
-
-      return {
-        content,
-        path,
-        name: data.name || file.replace(".md", ""),
-        description: data.description || "",
-      };
-    })
-    .filter((skill) => skill !== null) as {
+  const entries = readdirSync(skillsDir);
+  const skills: {
     content: string;
     path: string;
     name: string;
     description: string;
-  }[];
+  }[] = [];
+
+  for (const entry of entries) {
+    const entryPath = join(skillsDir, entry);
+    const stat = statSync(entryPath);
+
+    if (stat.isDirectory() && depth < MAX_DEPTH) {
+      skills.push(...loadSkillsFromDir(entryPath, depth + 1));
+    } else if (entry.endsWith(".md")) {
+      const contents = readFileSync(entryPath, "utf-8");
+      const { content, data } = matter(contents);
+
+      if (data.name && data.description) {
+        skills.push({
+          content,
+          path: entryPath,
+          name: data.name,
+          description: data.description,
+        });
+      }
+    }
+  }
 
   return skills;
 }
@@ -119,6 +132,7 @@ export function buildSystemPrompt({
 # Current Context
 
 - Current time: ${new Date().toISOString()}
+- Current day: ${new Date().toLocaleDateString("en-US", { weekday: "long" })}
 - Preferred Timezone: ${userTimezone}
 - Current working directory: ${process.cwd()}
 - Workspace directory: ${workspaceDir}

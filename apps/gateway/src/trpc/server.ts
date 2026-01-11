@@ -83,6 +83,9 @@ export async function startTRPCServer(): Promise<void> {
 export async function stopTRPCServer(): Promise<void> {
   return new Promise((resolve) => {
     if (server) {
+      // Force close all connections (Node 18.2+)
+      server.closeAllConnections?.();
+
       server.close(() => {
         logger.info("tRPC server stopped");
         server = null;

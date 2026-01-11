@@ -8,12 +8,18 @@ import {
   getSessionInputSchema,
   deleteSessionInputSchema,
   updateSettingsInputSchema,
+  updatePluginInputSchema,
   type Instance,
   type SessionInfo,
   type MetricsData,
   type HealthStatus,
   type UserSettings,
+  type PluginsConfig,
 } from "@pinky/trpc";
+import {
+  SessionManager,
+  type SessionMessageEntry,
+} from "@mariozechner/pi-coding-agent";
 import {
   existsSync,
   mkdirSync,
@@ -23,8 +29,12 @@ import {
   rmSync,
 } from "fs";
 import { join } from "path";
-import { config, getInstanceDir, DEFAULT_INSTANCE_ID } from "../config.js";
-import { SessionManager } from "../session/session-manager.js";
+import {
+  config,
+  getSessionsDir,
+  getWorkspaceDir,
+  DEFAULT_INSTANCE_ID,
+} from "../config.js";
 import { getMetrics, resetMetrics } from "../lib/telemetry/index.js";
 import { readSettings, writeSettings } from "../lib/settings.js";
 import type { Context } from "./context.js";
@@ -156,29 +166,120 @@ export const appRouter = router({
       .input(getSessionsInputSchema.optional())
       .query(({ input }): SessionInfo[] => {
         const instanceId = input?.instanceId || DEFAULT_INSTANCE_ID;
+        const workspaceDir = getWorkspaceDir(instanceId);
+        const sessionsDir = getSessionsDir(instanceId);
 
-        return SessionManager.listSessions(instanceId);
+        // Use pi-coding-agent's SessionManager.list()
+        return SessionManager.list(workspaceDir, sessionsDir);
       }),
 
     get: publicProcedure.input(getSessionInputSchema).query(({ input }) => {
       const instanceId = input.instanceId || DEFAULT_INSTANCE_ID;
-      const manager = new SessionManager({
-        sessionId: input.sessionId,
-        instanceId,
-      });
+      const sessionsDir = getSessionsDir(instanceId);
 
-      return manager.getMessages();
+      // Find the session file by ID
+      const sessionFiles = existsSync(sessionsDir)
+        ? readdirSync(sessionsDir).filter((f) => f.endsWith(".jsonl"))
+        : [];
+
+      const sessionFile = sessionFiles.find((f) => f.includes(input.sessionId));
+
+      if (!sessionFile) {
+        return [];
+      }
+
+      const sessionPath = join(sessionsDir, sessionFile);
+      const manager = SessionManager.open(sessionPath, sessionsDir);
+      const entries = manager.getEntries();
+
+      // Build a map of toolCallId -> toolResult for lookup
+      const toolResultsMap = new Map<
+        string,
+        { content: unknown; details?: unknown }
+      >();
+      for (const e of entries) {
+        if (e.type !== "message") continue;
+        const msg = e.message as { role: string; toolCallId?: string; content?: unknown; details?: unknown };
+        if (msg.role === "toolResult" && msg.toolCallId) {
+          toolResultsMap.set(msg.toolCallId, {
+            content: msg.content,
+            details: msg.details,
+          });
+        }
+      }
+
+      // Convert to UI-friendly format
+      // Filter to message entries and convert to the format the UI expects
+      return entries
+        .filter((e): e is SessionMessageEntry => e.type === "message")
+        .filter(
+          (e) => e.message.role === "user" || e.message.role === "assistant",
+        )
+        .map((e) => {
+          // AgentMessage with role user/assistant will have content array
+          const msg = e.message as {
+            role: string;
+            content: Array<{
+              type: string;
+              text?: string;
+              id?: string;
+              name?: string;
+              arguments?: unknown;
+            }>;
+          };
+
+          return {
+            id: e.id,
+            role: msg.role,
+            parts: msg.content.map((c) => {
+              if (c.type === "text") {
+                return { type: "text" as const, text: c.text || "" };
+              }
+
+              if (c.type === "toolCall") {
+                const toolResult = c.id ? toolResultsMap.get(c.id) : undefined;
+                // Format output to match what tool-display.tsx expects:
+                // { content: [...], details?: {...} } for edit tools with diff
+                // { content: [...] } for read/bash tools
+                const output = toolResult
+                  ? {
+                      content: toolResult.content,
+                      ...(toolResult.details ? { details: toolResult.details } : {}),
+                    }
+                  : undefined;
+                return {
+                  type: `tool-${c.name || "unknown"}`,
+                  toolCallId: c.id || "",
+                  input: c.arguments as Record<string, unknown> | undefined,
+                  output,
+                  state: "result" as const,
+                };
+              }
+
+              return { type: "text" as const, text: "" };
+            }),
+          };
+        });
     }),
 
     delete: publicProcedure
       .input(deleteSessionInputSchema)
       .mutation(({ input }): { success: boolean } => {
         const instanceId = input.instanceId || DEFAULT_INSTANCE_ID;
-        const sessionsDir = join(getInstanceDir(instanceId), "sessions");
-        const sessionDir = join(sessionsDir, input.sessionId);
+        const sessionsDir = getSessionsDir(instanceId);
 
-        if (existsSync(sessionDir)) {
-          rmSync(sessionDir, { recursive: true });
+        // Find and delete the session file by ID
+        if (existsSync(sessionsDir)) {
+          const sessionFiles = readdirSync(sessionsDir).filter((f) =>
+            f.endsWith(".jsonl"),
+          );
+          const sessionFile = sessionFiles.find((f) =>
+            f.includes(input.sessionId),
+          );
+
+          if (sessionFile) {
+            rmSync(join(sessionsDir, sessionFile));
+          }
         }
 
         return { success: true };
@@ -210,6 +311,41 @@ export const appRouter = router({
         writeSettings(updated);
 
         return updated;
+      }),
+  }),
+
+  plugins: router({
+    list: publicProcedure.query((): PluginsConfig => {
+      const pluginsPath = join(config.dataDir, "plugins.json");
+
+      if (!existsSync(pluginsPath)) {
+        return { plugins: {} };
+      }
+
+      const content = readFileSync(pluginsPath, "utf-8");
+      return JSON.parse(content) as PluginsConfig;
+    }),
+
+    update: publicProcedure
+      .input(updatePluginInputSchema)
+      .mutation(({ input }): PluginsConfig => {
+        const pluginsPath = join(config.dataDir, "plugins.json");
+
+        let pluginsConfig: PluginsConfig = { plugins: {} };
+
+        if (existsSync(pluginsPath)) {
+          const content = readFileSync(pluginsPath, "utf-8");
+          pluginsConfig = JSON.parse(content) as PluginsConfig;
+        }
+
+        const plugin = pluginsConfig.plugins[input.pluginId];
+        if (plugin) {
+          plugin.enabled = input.enabled;
+        }
+
+        writeFileSync(pluginsPath, JSON.stringify(pluginsConfig, null, 2));
+
+        return pluginsConfig;
       }),
   }),
 });

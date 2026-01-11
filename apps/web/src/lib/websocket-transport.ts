@@ -147,6 +147,7 @@ export class WebSocketChatTransport implements ChatTransport<UIMessage> {
       start: (controller) => {
         // Handle incoming chunks
         const handleChunk = (chunk: UIMessageChunk) => {
+          console.log("[WebSocketTransport] Received chunk:", chunk);
           controller.enqueue(chunk);
         };
 

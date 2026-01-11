@@ -1,5 +1,5 @@
 import { createFileRoute, Outlet, Link, useLocation } from "@tanstack/react-router";
-import { Server, Settings } from "lucide-react";
+import { Plug, Server, Settings } from "lucide-react";
 import {
   SidebarProvider,
   Sidebar,
@@ -23,6 +23,11 @@ const menuItems = [
     title: "Gateway",
     url: "/config/gateway",
     icon: Server,
+  },
+  {
+    title: "Plugins",
+    url: "/config/plugins",
+    icon: Plug,
   },
   {
     title: "Preferences",

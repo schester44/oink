@@ -6,6 +6,7 @@ import {
   getActiveTasksDir as getActiveTasksDirWithConfig,
   getArchiveTasksDir as getArchiveTasksDirWithConfig,
   getBrainDir as getBrainDirWithConfig,
+  getSessionsDir as getSessionsDirWithConfig,
   ensureInstanceDirs as ensureInstanceDirsWithConfig,
   type GatewayConfig,
 } from "./lib/config.js";
@@ -37,6 +38,10 @@ export function getBrainDir(instance: string): string {
 
 export function getWorkspaceDir(instanceId: string): string {
   return getBrainDir(instanceId);
+}
+
+export function getSessionsDir(instance: string): string {
+  return getSessionsDirWithConfig(config, instance);
 }
 
 export function ensureInstanceDirs(instance: string): void {
