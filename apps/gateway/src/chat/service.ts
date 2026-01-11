@@ -16,6 +16,7 @@ import { initializeBrain } from "@/brain/brain.js";
 import { config } from "@/config.js";
 import { recordLLMRequest } from "@/lib/telemetry/index.js";
 import { readSettings } from "@/lib/settings.js";
+import { writeFileSync } from "fs";
 
 type NormalizedPart =
   | { type: "text"; text: string }
@@ -29,6 +30,7 @@ type NormalizedPart =
 function normalizeMessageParts(message: ChatMessage): NormalizedPart[] {
   if (message.parts && message.parts.length > 0) {
     const result: NormalizedPart[] = [];
+
     for (const p of message.parts) {
       if (p.type === "text" && typeof p.text === "string") {
         result.push({ type: "text", text: p.text });
@@ -40,7 +42,10 @@ function normalizeMessageParts(message: ChatMessage): NormalizedPart[] {
         });
       }
     }
-    return result.length > 0 ? result : [{ type: "text", text: message.content }];
+
+    return result.length > 0
+      ? result
+      : [{ type: "text", text: message.content }];
   }
 
   return [{ type: "text", text: message.content }];
@@ -83,6 +88,10 @@ export async function* streamChat(
       userTimezone: settings.timezone,
     });
 
+    console.log("\x1b[33m%s\x1b[0m", "🪵 systemPrompt", systemPrompt);
+
+    writeFileSync("./systemPrompt.txt", systemPrompt);
+
     // Normalize the incoming message parts
     const normalizedParts = normalizeMessageParts(message);
 
@@ -117,13 +126,24 @@ export async function* streamChat(
     const modelMessages: ModelMessage[] = [];
 
     for (const m of previousMessages) {
-      const content: Array<{ type: "text"; text: string } | { type: "image"; image: string }> = [];
+      const content: Array<
+        { type: "text"; text: string } | { type: "image"; image: string }
+      > = [];
 
       for (const p of m.parts as UIMessagePart[]) {
         // Include text parts with valid string content
-        if (p.type === "text" && "text" in p && typeof p.text === "string" && p.text.length > 0) {
+        if (
+          p.type === "text" &&
+          "text" in p &&
+          typeof p.text === "string" &&
+          p.text.length > 0
+        ) {
           content.push({ type: "text", text: p.text });
-        } else if (p.type === "image" && "image" in p && typeof (p as ImagePart).image === "string") {
+        } else if (
+          p.type === "image" &&
+          "image" in p &&
+          typeof (p as ImagePart).image === "string"
+        ) {
           // Format image for AI SDK: base64 data URL
           const imagePart = p as { image: string; mimeType?: string };
           const mimeType = imagePart.mimeType || "image/jpeg";
@@ -142,7 +162,10 @@ export async function* streamChat(
         modelMessages.push({ role: "user", content });
       } else if (m.role === "assistant") {
         // Assistant messages only support text content
-        const textContent = content.filter((c): c is { type: "text"; text: string } => c.type === "text");
+        const textContent = content.filter(
+          (c): c is { type: "text"; text: string } => c.type === "text",
+        );
+
         if (textContent.length > 0) {
           modelMessages.push({ role: "assistant", content: textContent });
         }
@@ -153,9 +176,18 @@ export async function* streamChat(
     const tools = createTools({ session, instanceId, sourceChannel, chatId });
 
     // Stream the response using toUIMessageStream for proper AI SDK format
+    // Use prompt caching for the system prompt to reduce token costs on multi-step tool use
     const result = streamText({
       model: anthropic("claude-sonnet-4-5"),
-      system: systemPrompt,
+      system: [
+        {
+          role: "system",
+          content: systemPrompt,
+          providerOptions: {
+            anthropic: { cacheControl: { type: "ephemeral" } },
+          },
+        },
+      ],
       messages: modelMessages,
       tools,
       stopWhen: stepCountIs(50),
@@ -236,10 +268,14 @@ export async function* streamChat(
     const usage = await result.usage;
     const inputTokens = usage?.inputTokens ?? 0;
     const outputTokens = usage?.outputTokens ?? 0;
+    const cacheCreationInputTokens = usage?.inputTokenDetails?.cacheWriteTokens ?? 0;
+    const cacheReadInputTokens = usage?.inputTokenDetails?.cacheReadTokens ?? 0;
 
     recordLLMRequest({
       inputTokens,
       outputTokens,
+      cacheCreationInputTokens,
+      cacheReadInputTokens,
     });
 
     // Save assistant response to session with all parts (text + tool calls)
@@ -294,7 +330,15 @@ export async function generateChat(request: {
 
   const result = await generateText({
     model: anthropic("claude-sonnet-4-5"),
-    system: systemPrompt,
+    system: [
+      {
+        role: "system",
+        content: systemPrompt,
+        providerOptions: {
+          anthropic: { cacheControl: { type: "ephemeral" } },
+        },
+      },
+    ],
     prompt,
     tools: createTools({ instanceId }),
     stopWhen: stepCountIs(50),

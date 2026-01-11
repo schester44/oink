@@ -58,6 +58,29 @@ export function MetricsWidget({ metrics }: { metrics: MetricsData }) {
                 {formatNumber(metrics.avgTokensPerRequest)}
               </span>
             </div>
+            {(metrics.totalCacheReadTokens > 0 ||
+              metrics.totalCacheCreationTokens > 0) && (
+              <>
+                <div className="border-t pt-3 flex justify-between text-sm">
+                  <span className="text-muted-foreground">Cache Reads</span>
+                  <span className="font-mono text-green-600">
+                    {formatNumber(metrics.totalCacheReadTokens)}
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Cache Writes</span>
+                  <span className="font-mono">
+                    {formatNumber(metrics.totalCacheCreationTokens)}
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Cache Hit Rate</span>
+                  <span className="font-mono">
+                    {metrics.cacheHitRate.toFixed(0)}%
+                  </span>
+                </div>
+              </>
+            )}
             <div className="text-xs text-muted-foreground pt-2 border-t">
               Updated: {new Date(metrics.lastUpdated).toLocaleTimeString()}
             </div>

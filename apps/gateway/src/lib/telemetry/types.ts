@@ -8,6 +8,10 @@ export interface MetricsData {
   avgInputTokensPerRequest: number;
   avgOutputTokensPerRequest: number;
   avgTokensPerRequest: number;
+  // Cache stats (Anthropic prompt caching)
+  totalCacheCreationTokens: number;
+  totalCacheReadTokens: number;
+  cacheHitRate: number; // Percentage of requests with cache hits
   lastUpdated: string;
   histogram: {
     inputTokens: number[];

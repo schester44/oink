@@ -74,6 +74,9 @@ function loadMetrics(): MetricsData {
     avgInputTokensPerRequest: 0,
     avgOutputTokensPerRequest: 0,
     avgTokensPerRequest: 0,
+    totalCacheCreationTokens: 0,
+    totalCacheReadTokens: 0,
+    cacheHitRate: 0,
     lastUpdated: new Date().toISOString(),
     histogram: {
       inputTokens: [],
@@ -207,6 +210,8 @@ export const llmOutputTokenCounter = meter.createCounter("llm.tokens.output", {
 export interface TokenUsage {
   inputTokens: number;
   outputTokens: number;
+  cacheCreationInputTokens?: number;
+  cacheReadInputTokens?: number;
 }
 
 /**
@@ -217,6 +222,23 @@ export function recordLLMRequest(usage: TokenUsage): void {
   llmRequestCounter.add(1);
   llmInputTokenCounter.add(usage.inputTokens);
   llmOutputTokenCounter.add(usage.outputTokens);
+
+  // Track cache stats if available
+  if (usage.cacheCreationInputTokens || usage.cacheReadInputTokens) {
+    const metrics = loadMetrics();
+    metrics.totalCacheCreationTokens += usage.cacheCreationInputTokens ?? 0;
+    metrics.totalCacheReadTokens += usage.cacheReadInputTokens ?? 0;
+
+    // Calculate cache hit rate (requests with cache reads / total requests)
+    const hasCache = (usage.cacheReadInputTokens ?? 0) > 0;
+    const totalWithCache = hasCache ? 1 : 0;
+    // Simple rolling calculation - weight new data
+    metrics.cacheHitRate =
+      (metrics.cacheHitRate * (metrics.requestCount - 1) + totalWithCache * 100) /
+      metrics.requestCount;
+
+    saveMetrics(metrics);
+  }
 }
 
 /**
@@ -238,6 +260,9 @@ export function resetMetrics(): void {
     avgInputTokensPerRequest: 0,
     avgOutputTokensPerRequest: 0,
     avgTokensPerRequest: 0,
+    totalCacheCreationTokens: 0,
+    totalCacheReadTokens: 0,
+    cacheHitRate: 0,
     lastUpdated: new Date().toISOString(),
     histogram: {
       inputTokens: [],

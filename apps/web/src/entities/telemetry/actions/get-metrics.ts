@@ -14,6 +14,9 @@ export const getMetricsServerFn = createServerFn().handler(async () => {
       avgInputTokensPerRequest: 0,
       avgOutputTokensPerRequest: 0,
       avgTokensPerRequest: 0,
+      totalCacheCreationTokens: 0,
+      totalCacheReadTokens: 0,
+      cacheHitRate: 0,
       lastUpdated: new Date().toISOString(),
       histogram: {
         inputTokens: [],

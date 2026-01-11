@@ -49,6 +49,10 @@ export const metricsDataSchema = z.object({
   avgInputTokensPerRequest: z.number(),
   avgOutputTokensPerRequest: z.number(),
   avgTokensPerRequest: z.number(),
+  // Cache stats (Anthropic prompt caching)
+  totalCacheCreationTokens: z.number().default(0),
+  totalCacheReadTokens: z.number().default(0),
+  cacheHitRate: z.number().default(0),
   lastUpdated: z.string(),
   histogram: z.object({
     inputTokens: z.array(z.number()),
