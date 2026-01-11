@@ -2,9 +2,8 @@ import {
   streamText,
   generateText,
   stepCountIs,
-  convertToModelMessages,
-  validateUIMessages,
   createIdGenerator,
+  type ModelMessage,
 } from "ai";
 import { anthropic } from "@ai-sdk/anthropic";
 import type { StreamChunk, ChatRequest, ChatMessage } from "./types.js";
@@ -12,7 +11,7 @@ import { SessionManager } from "../session/index.js";
 import { buildSystemPrompt } from "./prompts.js";
 import { createTools } from "../agent/tools.js";
 import { logger } from "../logger.js";
-import type { UIMessagePart } from "../session/types.js";
+import type { UIMessagePart, ImagePart } from "../session/types.js";
 import { initializeBrain } from "@/brain/brain.js";
 import { config } from "@/config.js";
 import { recordLLMRequest } from "@/lib/telemetry/index.js";
@@ -113,39 +112,42 @@ export async function* streamChat(
       });
     }
 
-    // Convert session messages to AI SDK format for validation
-    // Include text and image parts for vision support
-    // Filter out messages with empty parts (validation requires at least 1 part)
-    const messagesForValidation = previousMessages
-      .map((m) => {
-        const parts: Array<{ type: "text"; text: string } | { type: "image"; image: string }> = [];
+    // Build model messages directly (bypassing validateUIMessages which doesn't support images)
+    // ModelMessage is a discriminated union - we need to build user/assistant messages separately
+    const modelMessages: ModelMessage[] = [];
 
-        for (const p of m.parts as UIMessagePart[]) {
-          // Only include text parts with valid string content
-          if (p.type === "text" && "text" in p && typeof p.text === "string" && p.text.length > 0) {
-            parts.push({ type: "text", text: p.text });
-          } else if (p.type === "image" && "image" in p && typeof (p as ImagePart).image === "string") {
-            // Format image for AI SDK: base64 data URL
-            const imagePart = p as { image: string; mimeType?: string };
-            const mimeType = imagePart.mimeType || "image/jpeg";
-            parts.push({
-              type: "image",
-              image: `data:${mimeType};base64,${imagePart.image}`,
-            });
-          }
+    for (const m of previousMessages) {
+      const content: Array<{ type: "text"; text: string } | { type: "image"; image: string }> = [];
+
+      for (const p of m.parts as UIMessagePart[]) {
+        // Include text parts with valid string content
+        if (p.type === "text" && "text" in p && typeof p.text === "string" && p.text.length > 0) {
+          content.push({ type: "text", text: p.text });
+        } else if (p.type === "image" && "image" in p && typeof (p as ImagePart).image === "string") {
+          // Format image for AI SDK: base64 data URL
+          const imagePart = p as { image: string; mimeType?: string };
+          const mimeType = imagePart.mimeType || "image/jpeg";
+          content.push({
+            type: "image",
+            image: `data:${mimeType};base64,${imagePart.image}`,
+          });
         }
+      }
 
-        return {
-          id: m.id,
-          role: m.role as "user" | "assistant",
-          parts,
-        };
-      })
-      .filter((m) => m.parts.length > 0);
+      // Skip messages with no valid content
+      if (content.length === 0) continue;
 
-    const validatedMessages = await validateUIMessages({
-      messages: messagesForValidation,
-    });
+      // Build properly typed CoreMessage based on role
+      if (m.role === "user") {
+        modelMessages.push({ role: "user", content });
+      } else if (m.role === "assistant") {
+        // Assistant messages only support text content
+        const textContent = content.filter((c): c is { type: "text"; text: string } => c.type === "text");
+        if (textContent.length > 0) {
+          modelMessages.push({ role: "assistant", content: textContent });
+        }
+      }
+    }
 
     // Create tools
     const tools = createTools({ session, instanceId });
@@ -154,7 +156,7 @@ export async function* streamChat(
     const result = streamText({
       model: anthropic("claude-sonnet-4-5"),
       system: systemPrompt,
-      messages: await convertToModelMessages(validatedMessages),
+      messages: modelMessages,
       tools,
       stopWhen: stepCountIs(50),
     });
