@@ -12,6 +12,8 @@ interface CreateToolsOptions {
   instanceId?: string;
   /** The source channel/plugin for notification routing (e.g., "telegram", "websocket") */
   sourceChannel?: string;
+  /** The chat ID to send responses back to */
+  chatId?: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   additionalTools?: Record<string, any>;
 }
@@ -27,6 +29,7 @@ export function createTools(opts?: CreateToolsOptions) {
     cron: createCronTool({
       instanceId,
       sourceChannel: opts?.sourceChannel,
+      chatId: opts?.chatId,
     }),
     edit: createEditTool({
       workspaceDir,

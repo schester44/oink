@@ -31,6 +31,9 @@ export async function executeTask(task: Task): Promise<ExecutionResult> {
       output: task.execution.message,
       executedAt,
       type: "notification",
+      chatId: task.chatId,
+      sessionId: task.sessionId,
+      channels: task.notifications.channels,
     };
   }
 
@@ -74,8 +77,7 @@ export async function executeTask(task: Task): Promise<ExecutionResult> {
           ? {
               inputTokens: result.usage.inputTokens,
               outputTokens: result.usage.outputTokens,
-              totalTokens:
-                result.usage.inputTokens + result.usage.outputTokens,
+              totalTokens: result.usage.inputTokens + result.usage.outputTokens,
             }
           : undefined,
       });
@@ -93,6 +95,9 @@ export async function executeTask(task: Task): Promise<ExecutionResult> {
       output: result.text,
       executedAt,
       type: "llm",
+      chatId: task.chatId,
+      sessionId: task.sessionId,
+      channels: task.notifications.channels,
     };
   } catch (error) {
     logger.error({ error, taskId: task.id }, "LLM execution failed");

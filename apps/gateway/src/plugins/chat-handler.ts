@@ -93,6 +93,7 @@ async function handleIncoming(message: NormalizedMessage): Promise<void> {
     instanceId: message.instanceId,
     message: chatMessage,
     sourceChannel: message.pluginId,
+    chatId: message.chatId,
   };
 
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {

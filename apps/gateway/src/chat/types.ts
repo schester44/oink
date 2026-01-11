@@ -28,4 +28,6 @@ export interface ChatRequest {
   message: ChatMessage;
   /** The plugin/channel that originated this request (e.g., "telegram", "websocket") */
   sourceChannel?: string;
+  /** The chat ID to send responses back to */
+  chatId?: string;
 }

@@ -63,7 +63,7 @@ function extractTextFromParts(parts: UIMessagePart[]): string {
 export async function* streamChat(
   request: ChatRequest,
 ): AsyncGenerator<StreamChunk> {
-  const { sessionId, instanceId, message, sourceChannel } = request;
+  const { sessionId, instanceId, message, sourceChannel, chatId } = request;
 
   try {
     await initializeBrain({
@@ -150,7 +150,7 @@ export async function* streamChat(
     }
 
     // Create tools
-    const tools = createTools({ session, instanceId, sourceChannel });
+    const tools = createTools({ session, instanceId, sourceChannel, chatId });
 
     // Stream the response using toUIMessageStream for proper AI SDK format
     const result = streamText({

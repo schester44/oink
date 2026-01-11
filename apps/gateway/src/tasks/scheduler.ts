@@ -2,7 +2,7 @@
 
 import cron, { ScheduledTask } from "node-cron";
 import chokidar, { FSWatcher } from "chokidar";
-import { join, basename } from "path";
+import { basename } from "path";
 import { Task } from "./types.js";
 import {
   loadTask,
@@ -46,8 +46,8 @@ async function handleTaskExecution(task: Task): Promise<void> {
     task.metadata.runCount += 1;
     task.metadata.lastError = null;
 
-    // Dispatch result
-    await dispatch(result, task.notifications.channels);
+    // Dispatch result as chat message
+    await dispatch(result);
 
     // Archive one-shot tasks
     if (task.schedule.type === "once") {

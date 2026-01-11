@@ -68,7 +68,19 @@ export function createOutgoingHandler(
       return;
     }
 
-    // Emit completion signal (chunk handler already sent the finish chunk via rawChunk)
+    // For scheduled task results (no rawChunk), send the content directly
+    if (message.isComplete && !message.rawChunk) {
+      const textContent = message.content.find((c) => c.type === "text");
+      if (textContent && textContent.type === "text") {
+        socket.emit("chat-message", {
+          sessionId: message.sessionId,
+          role: "assistant",
+          content: textContent.text,
+        });
+      }
+    }
+
+    // Emit completion signal
     if (message.isComplete) {
       socket.emit("chat-complete", { sessionId: message.sessionId });
     }

@@ -1,43 +1,40 @@
 // apps/gateway/src/tasks/dispatcher.ts
 //
-// Dispatcher uses the plugin event bus to send notifications.
-// Each plugin (websocket, telegram, etc.) handles its own notification delivery
-// by listening to the "notification" event on the event bus.
+// Dispatcher sends task results as chat messages via the plugin event bus.
+// Each plugin (websocket, telegram, etc.) handles message delivery
+// by listening to the "outgoing" event on the event bus.
 
 import { ExecutionResult } from "./types.js";
 import { logger } from "../logger.js";
 import { eventBus } from "../plugins/event-bus.js";
-import type { PluginNotification } from "../plugins/types.js";
+import type { OutgoingMessage } from "../plugins/types.js";
 
 /**
- * Dispatch task execution results to notification channels via the plugin event bus.
+ * Dispatch task execution results as chat messages via the plugin event bus.
  *
- * Plugins register themselves to handle notifications by listening to the "notification"
- * event on the event bus. Each plugin filters for its own pluginId.
+ * Results are sent as regular outgoing messages, appearing in the chat
+ * like any other assistant response.
  *
- * @param result - The task execution result
- * @param channels - Array of plugin IDs to notify (e.g., ["telegram", "websocket"])
+ * @param result - The task execution result (includes channels, chatId, sessionId)
  */
-export async function dispatch(
-  result: ExecutionResult,
-  channels: string[] = ["websocket"],
-): Promise<void> {
-  for (const channelName of channels) {
-    const notification: PluginNotification = {
-      instanceId: result.instance,
-      pluginId: channelName,
-      chatId: "", // Plugins use their default/configured chat ID
-      title: result.taskName || `Task: ${result.taskId}`,
-      content: [
-        { type: "text", text: result.output || "Task completed" },
-      ],
-      priority: "normal",
+export async function dispatch(result: ExecutionResult): Promise<void> {
+  const channels = result.channels || ["websocket"];
+
+  for (const pluginId of channels) {
+    const message: OutgoingMessage = {
+      sessionId: result.sessionId || "",
+      chatId: result.chatId || "",
+      pluginId,
+      content: [{ type: "text", text: result.output || "Task completed" }],
+      isStreaming: false,
+      isComplete: true,
     };
 
-    eventBus.emit("notification", notification);
+    eventBus.emit("outgoing", message);
+
     logger.debug(
-      { channel: channelName, taskId: result.taskId },
-      "Notification dispatched to plugin"
+      { pluginId, taskId: result.taskId, chatId: result.chatId },
+      "Task result dispatched as message",
     );
   }
 }

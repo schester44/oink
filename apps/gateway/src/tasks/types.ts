@@ -45,6 +45,7 @@ export interface Task {
   notifications: TaskNotifications;
   metadata: TaskMetadata;
   sessionId?: string; // Session to save LLM results to
+  chatId?: string; // Chat ID to send results back to
 }
 
 export interface ExecutionResult {
@@ -54,4 +55,7 @@ export interface ExecutionResult {
   output: string;
   executedAt: string;
   type: "notification" | "llm";
+  chatId?: string;
+  sessionId?: string;
+  channels: string[];
 }

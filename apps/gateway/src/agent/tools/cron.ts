@@ -20,6 +20,8 @@ interface CronToolOptions {
   instanceId?: string;
   /** The source channel for notifications (e.g., "telegram", "websocket") */
   sourceChannel?: string;
+  /** The chat ID to send responses back to */
+  chatId?: string;
 }
 
 interface CronResult {
@@ -118,6 +120,7 @@ async function handleAdd(
   instance: string,
   input: CronInput,
   sourceChannel?: string,
+  chatId?: string,
 ): Promise<CronResult> {
   const { name, cron, executionType, executionPayload, description, sessionId } = input;
 
@@ -156,6 +159,7 @@ async function handleAdd(
     execution,
     sessionId,
     channels: sourceChannel ? [sourceChannel] : undefined,
+    chatId,
   };
 
   const task = createTask(taskInput);
@@ -310,7 +314,7 @@ async function handleRun(
         task.metadata.runCount += 1;
         task.metadata.lastError = null;
         saveTask(task);
-        await dispatch(result, task.notifications.channels);
+        await dispatch(result);
       })
       .catch((error) => {
         const errorMessage =
@@ -334,6 +338,7 @@ async function handleRun(
 export function createCronTool(options?: CronToolOptions) {
   const defaultInstance = options?.instanceId ?? DEFAULT_INSTANCE_ID;
   const sourceChannel = options?.sourceChannel;
+  const sourceChatId = options?.chatId;
 
   return tool({
     description:
@@ -342,7 +347,7 @@ export function createCronTool(options?: CronToolOptions) {
     execute: async (input) => {
       const instance = input.instance ?? defaultInstance;
 
-      logger.debug({ action: input.action, instance, sourceChannel }, "Cron tool invoked");
+      logger.debug({ action: input.action, instance, sourceChannel, sourceChatId }, "Cron tool invoked");
 
       switch (input.action) {
         case "status":
@@ -350,7 +355,7 @@ export function createCronTool(options?: CronToolOptions) {
         case "list":
           return handleList(instance);
         case "add":
-          return handleAdd(instance, input, sourceChannel);
+          return handleAdd(instance, input, sourceChannel, sourceChatId);
         case "update":
           return handleUpdate(instance, input);
         case "remove":
