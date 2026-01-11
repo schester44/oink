@@ -40,6 +40,8 @@ export interface OutgoingMessage {
   content: OutgoingContent[];
   isStreaming: boolean;
   isComplete: boolean;
+  // Raw UIMessageChunk from AI SDK for WebSocket passthrough
+  rawChunk?: unknown;
 }
 
 // === Notification Types ===

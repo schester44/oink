@@ -3,7 +3,7 @@
 import { eventBus } from "./event-bus.js";
 import { streamChat } from "../chat/service.js";
 import { logger } from "../lib/logger.js";
-import type { NormalizedMessage, OutgoingMessage, MessageContent } from "./types.js";
+import type { NormalizedMessage, MessageContent } from "./types.js";
 import type { ChatRequest, ChatMessage } from "../chat/types.js";
 
 const MAX_RETRIES = 3;
@@ -47,8 +47,12 @@ function buildChatMessageContent(content: MessageContent[]): string {
 
 async function handleIncoming(message: NormalizedMessage): Promise<void> {
   logger.debug(
-    { pluginId: message.pluginId, chatId: message.chatId, sessionId: message.sessionId },
-    "Processing incoming message"
+    {
+      pluginId: message.pluginId,
+      chatId: message.chatId,
+      sessionId: message.sessionId,
+    },
+    "Processing incoming message",
   );
 
   const chatMessage: ChatMessage = {
@@ -74,14 +78,20 @@ async function handleIncoming(message: NormalizedMessage): Promise<void> {
           collectedText.push(chunk.delta);
         }
 
-        // Emit streaming chunks
+        // Emit streaming chunks with raw chunk for WebSocket passthrough
         eventBus.emit("outgoing-chunk", {
           sessionId: message.sessionId,
           chatId: message.chatId,
           pluginId: message.pluginId,
-          content: [{ type: "text", text: chunk.type === "text-delta" ? chunk.delta : "" }],
+          content: [
+            {
+              type: "text",
+              text: chunk.type === "text-delta" ? chunk.delta : "",
+            },
+          ],
           isStreaming: true,
           isComplete: false,
+          rawChunk: chunk,
         });
 
         // On finish, emit complete message
@@ -93,14 +103,21 @@ async function handleIncoming(message: NormalizedMessage): Promise<void> {
             content: [{ type: "text", text: collectedText.join("") }],
             isStreaming: false,
             isComplete: true,
+            rawChunk: chunk,
           });
         }
       }
+
       return; // Success
     } catch (error) {
       logger.error(
-        { error, attempt, maxRetries: MAX_RETRIES, sessionId: message.sessionId },
-        "Chat processing failed"
+        {
+          error,
+          attempt,
+          maxRetries: MAX_RETRIES,
+          sessionId: message.sessionId,
+        },
+        "Chat processing failed",
       );
 
       if (attempt < MAX_RETRIES) {
@@ -113,10 +130,12 @@ async function handleIncoming(message: NormalizedMessage): Promise<void> {
         sessionId: message.sessionId,
         chatId: message.chatId,
         pluginId: message.pluginId,
-        content: [{
-          type: "text",
-          text: "Sorry, I'm having trouble processing your message. Please try again in a moment.",
-        }],
+        content: [
+          {
+            type: "text",
+            text: "Sorry, I'm having trouble processing your message. Please try again in a moment.",
+          },
+        ],
         isStreaming: false,
         isComplete: true,
       });

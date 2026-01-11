@@ -5,7 +5,11 @@ import {
   getSchedulerStats,
 } from "./tasks/scheduler.js";
 import { startTRPCServer, stopTRPCServer } from "./trpc/server.js";
-import { pluginRegistry, startChatHandler, stopChatHandler } from "./plugins/index.js";
+import {
+  pluginRegistry,
+  startChatHandler,
+  stopChatHandler,
+} from "./plugins/index.js";
 
 async function startGateway() {
   logger.info("Starting Pinky Gateway");
@@ -25,10 +29,7 @@ async function startGateway() {
 
   setInterval(() => {
     const schedulerStats = getSchedulerStats();
-    logger.debug(
-      { scheduler: schedulerStats },
-      "Gateway stats",
-    );
+    logger.debug({ scheduler: schedulerStats }, "Gateway stats");
   }, 60000);
 
   logger.info("Pinky Gateway started successfully");

@@ -68,20 +68,8 @@ export function createOutgoingHandler(
       return;
     }
 
-    // For WebSocket, emit chunks for streaming
-    if (message.isStreaming && !message.isComplete) {
-      const textContent = message.content.find((c) => c.type === "text");
-      if (textContent && textContent.type === "text") {
-        socket.emit("chat-chunk", {
-          type: "text-delta",
-          delta: textContent.text,
-        });
-      }
-    }
-
-    // Emit completion
+    // Emit completion signal (chunk handler already sent the finish chunk via rawChunk)
     if (message.isComplete) {
-      socket.emit("chat-chunk", { type: "finish", finishReason: "stop" });
       socket.emit("chat-complete", { sessionId: message.sessionId });
     }
   };
@@ -96,12 +84,9 @@ export function createChunkHandler(
     const socket = getSocket(message.chatId);
     if (!socket) return;
 
-    const textContent = message.content.find((c) => c.type === "text");
-    if (textContent && textContent.type === "text" && textContent.text) {
-      socket.emit("chat-chunk", {
-        type: "text-delta",
-        delta: textContent.text,
-      });
+    // Pass through raw UIMessageChunk for AI SDK compatibility
+    if (message.rawChunk) {
+      socket.emit("chat-chunk", message.rawChunk);
     }
   };
 }

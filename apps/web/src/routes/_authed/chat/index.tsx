@@ -170,7 +170,6 @@ function ChatPage() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const isLoading = status === "streaming" || status === "submitted";
-  console.log("🪵 isLoading", isLoading);
 
   // Check if the last assistant message has any text content yet
   const lastMessage = messages[messages.length - 1];
