@@ -7,10 +7,12 @@ import {
   getSessionsInputSchema,
   getSessionInputSchema,
   deleteSessionInputSchema,
+  updateSettingsInputSchema,
   type Instance,
   type SessionInfo,
   type MetricsData,
   type HealthStatus,
+  type UserSettings,
 } from "@oink/trpc";
 import {
   existsSync,
@@ -24,6 +26,7 @@ import { join } from "path";
 import { config, getInstanceDir, DEFAULT_INSTANCE_ID } from "../config.js";
 import { SessionManager } from "../session/session-manager.js";
 import { getMetrics, resetMetrics } from "../lib/telemetry/index.js";
+import { readSettings, writeSettings } from "../lib/settings.js";
 import type { Context } from "./context.js";
 
 const startTime = Date.now();
@@ -192,6 +195,22 @@ export const appRouter = router({
 
       return { success: true };
     }),
+  }),
+
+  settings: router({
+    get: publicProcedure.query((): UserSettings => {
+      return readSettings();
+    }),
+
+    update: publicProcedure
+      .input(updateSettingsInputSchema)
+      .mutation(({ input }): UserSettings => {
+        const current = readSettings();
+        const updated = { ...current, ...input };
+        writeSettings(updated);
+
+        return updated;
+      }),
   }),
 });
 

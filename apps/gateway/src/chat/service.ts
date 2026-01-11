@@ -16,6 +16,7 @@ import type { UIMessagePart } from "../session/types.js";
 import { initializeBrain } from "@/brain/brain.js";
 import { config } from "@/config.js";
 import { recordLLMRequest } from "@/lib/telemetry/index.js";
+import { readSettings } from "@/lib/settings.js";
 
 /**
  * Normalize a message to ensure it has `parts` array.
@@ -68,7 +69,11 @@ export async function* streamChat(
       instanceId,
     });
 
-    const systemPrompt = buildSystemPrompt({ instanceId });
+    const settings = readSettings();
+    const systemPrompt = buildSystemPrompt({
+      instanceId,
+      userTimezone: settings.timezone,
+    });
 
     // Normalize the incoming message parts
     const normalizedParts = normalizeMessageParts(message);
@@ -186,6 +191,7 @@ export async function* streamChat(
         case "tool-output-available": {
           // Find existing tool call part and update it with result
           const existingPart = toolCallParts.get(chunk.toolCallId);
+
           if (existingPart) {
             existingPart.state = "result";
             existingPart.output = chunk.output;
@@ -208,7 +214,10 @@ export async function* streamChat(
     // Save assistant response to session with all parts (text + tool calls)
     session.appendStructuredMessage({
       role: "assistant",
-      parts: collectedParts.length > 0 ? collectedParts : [{ type: "text", text: "" }],
+      parts:
+        collectedParts.length > 0
+          ? collectedParts
+          : [{ type: "text", text: "" }],
       usage: usage
         ? {
             inputTokens,
@@ -247,13 +256,17 @@ export async function generateChat(request: {
 }> {
   const { instanceId, prompt, systemPromptOverride } = request;
 
+  const settings = readSettings();
   const systemPrompt =
-    systemPromptOverride || buildSystemPrompt({ instanceId });
+    systemPromptOverride ||
+    buildSystemPrompt({ instanceId, userTimezone: settings.timezone });
 
   const result = await generateText({
-    model: anthropic("claude-sonnet-4-5-20250514"),
+    model: anthropic("claude-sonnet-4-5"),
     system: systemPrompt,
     prompt,
+    tools: createTools({ instanceId }),
+    stopWhen: stepCountIs(50),
   });
 
   return {

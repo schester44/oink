@@ -12,6 +12,8 @@ import {
   deleteSessionInputSchema,
   metricsDataSchema,
   healthStatusSchema,
+  userSettingsSchema,
+  updateSettingsInputSchema,
 } from "./schemas";
 
 // Initialize tRPC - this creates the procedure builders
@@ -99,6 +101,18 @@ export const appRouterDefinition = router({
     }),
     reset: publicProcedure
       .output(z.object({ success: z.boolean() }))
+      .mutation(() => {
+        throw new Error("Not implemented - use gateway");
+      }),
+  }),
+
+  settings: router({
+    get: publicProcedure.output(userSettingsSchema).query(() => {
+      throw new Error("Not implemented - use gateway");
+    }),
+    update: publicProcedure
+      .input(updateSettingsInputSchema)
+      .output(userSettingsSchema)
       .mutation(() => {
         throw new Error("Not implemented - use gateway");
       }),

@@ -137,6 +137,7 @@ export interface CreateTaskInput {
   execution: Task["execution"];
   channels?: string[];
   createdBy?: string;
+  sessionId?: string;
 }
 
 export function createTask(input: CreateTaskInput): Task {
@@ -161,6 +162,7 @@ export function createTask(input: CreateTaskInput): Task {
       runCount: 0,
       lastError: null,
     },
+    sessionId: input.sessionId,
   };
 
   saveTask(task);

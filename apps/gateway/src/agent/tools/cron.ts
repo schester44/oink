@@ -1,5 +1,6 @@
 import { tool } from "ai";
 import { z } from "zod";
+import nodeCron from "node-cron";
 import { logger } from "../../logger.js";
 import { DEFAULT_INSTANCE_ID } from "../../config.js";
 import {
@@ -20,8 +21,8 @@ interface CronToolOptions {
 }
 
 interface CronResult {
-  success: boolean;
-  message: string;
+  stdout?: string;
+  stderr?: string;
   data?: unknown;
 }
 
@@ -49,7 +50,9 @@ const inputSchema = z.object({
   cron: z
     .string()
     .optional()
-    .describe("Cron expression (e.g., '0 9 * * *' for 9am daily)"),
+    .describe(
+      "Cron expression (e.g., '0 9 * * *' for 9am daily). Use precision for one time tasks eg 47 22 9 1 *",
+    ),
   executionType: z
     .enum(["notification", "llm"])
     .optional()
@@ -63,6 +66,10 @@ const inputSchema = z.object({
     .optional()
     .default(false)
     .describe("Wait for execution to complete (for run action)"),
+  sessionId: z
+    .string()
+    .optional()
+    .describe("Session ID to save LLM results to (for llm execution type)"),
 });
 
 type CronInput = z.infer<typeof inputSchema>;
@@ -74,6 +81,7 @@ function formatTask(task: Task): object {
     description: task.description,
     schedule: task.schedule,
     execution: task.execution,
+    sessionId: task.sessionId,
     lastRun: task.metadata.lastRun,
     runCount: task.metadata.runCount,
     lastError: task.metadata.lastError,
@@ -85,8 +93,7 @@ async function handleStatus(instance: string): Promise<CronResult> {
   const tasks = loadAllTasks(instance);
 
   return {
-    success: true,
-    message: `Scheduler is ${stats.isRunning ? "running" : "stopped"}`,
+    stdout: `Scheduler is ${stats.isRunning ? "running" : "stopped"}`,
     data: {
       isRunning: stats.isRunning,
       taskCount: stats.taskCount,
@@ -100,8 +107,7 @@ async function handleList(instance: string): Promise<CronResult> {
   const tasks = loadAllTasks(instance);
 
   return {
-    success: true,
-    message: `Found ${tasks.length} task(s)`,
+    stdout: `Found ${tasks.length} task(s)`,
     data: tasks.map(formatTask),
   };
 }
@@ -110,25 +116,28 @@ async function handleAdd(
   instance: string,
   input: CronInput,
 ): Promise<CronResult> {
-  const { name, cron, executionType, executionPayload, description } = input;
+  const { name, cron, executionType, executionPayload, description, sessionId } = input;
 
   if (!name) {
-    return { success: false, message: "Missing required field: name" };
+    return { stderr: "Missing required field: name" };
   }
 
   if (!cron) {
-    return { success: false, message: "Missing required field: cron" };
+    return { stderr: "Missing required field: cron" };
+  }
+
+  if (!nodeCron.validate(cron)) {
+    return {
+      stderr: `Invalid cron expression: "${cron}". Use standard cron format (e.g., "0 9 * * *" for 9am daily, "47 22 9 1 *" for specific date/time)`,
+    };
   }
 
   if (!executionType) {
-    return { success: false, message: "Missing required field: executionType" };
+    return { stderr: "Missing required field: executionType" };
   }
 
   if (!executionPayload) {
-    return {
-      success: false,
-      message: "Missing required field: executionPayload",
-    };
+    return { stderr: "Missing required field: executionPayload" };
   }
 
   const execution: TaskExecution =
@@ -142,6 +151,7 @@ async function handleAdd(
     description,
     schedule: { type: "recurring", cron },
     execution,
+    sessionId,
   };
 
   const task = createTask(taskInput);
@@ -149,8 +159,7 @@ async function handleAdd(
   logger.info({ taskId: task.id, name }, "Task created via cron tool");
 
   return {
-    success: true,
-    message: `Task "${name}" created with ID ${task.id}`,
+    stdout: `Task "${name}" created with ID ${task.id}`,
     data: formatTask(task),
   };
 }
@@ -159,17 +168,17 @@ async function handleUpdate(
   instance: string,
   input: CronInput,
 ): Promise<CronResult> {
-  const { taskId, name, description, cron, executionType, executionPayload } =
+  const { taskId, name, description, cron, executionType, executionPayload, sessionId } =
     input;
 
   if (!taskId) {
-    return { success: false, message: "Missing required field: taskId" };
+    return { stderr: "Missing required field: taskId" };
   }
 
   const task = loadTask(instance, taskId);
 
   if (!task) {
-    return { success: false, message: `Task not found: ${taskId}` };
+    return { stderr: `Task not found: ${taskId}` };
   }
 
   if (name !== undefined) {
@@ -181,6 +190,11 @@ async function handleUpdate(
   }
 
   if (cron !== undefined && task.schedule.type === "recurring") {
+    if (!nodeCron.validate(cron)) {
+      return {
+        stderr: `Invalid cron expression: "${cron}". Use standard cron format (e.g., "0 9 * * *" for 9am daily, "47 22 9 1 *" for specific date/time)`,
+      };
+    }
     task.schedule.cron = cron;
   }
 
@@ -191,13 +205,16 @@ async function handleUpdate(
         : { type: "llm", prompt: executionPayload };
   }
 
+  if (sessionId !== undefined) {
+    task.sessionId = sessionId;
+  }
+
   saveTask(task);
 
   logger.info({ taskId }, "Task updated via cron tool");
 
   return {
-    success: true,
-    message: `Task "${task.name}" updated`,
+    stdout: `Task "${task.name}" updated`,
     data: formatTask(task),
   };
 }
@@ -209,26 +226,25 @@ async function handleRemove(
   const { taskId } = input;
 
   if (!taskId) {
-    return { success: false, message: "Missing required field: taskId" };
+    return { stderr: "Missing required field: taskId" };
   }
 
   const task = loadTask(instance, taskId);
 
   if (!task) {
-    return { success: false, message: `Task not found: ${taskId}` };
+    return { stderr: `Task not found: ${taskId}` };
   }
 
   const deleted = deleteTask(instance, taskId);
 
   if (!deleted) {
-    return { success: false, message: `Failed to delete task: ${taskId}` };
+    return { stderr: `Failed to delete task: ${taskId}` };
   }
 
   logger.info({ taskId }, "Task removed via cron tool");
 
   return {
-    success: true,
-    message: `Task "${task.name}" removed`,
+    stdout: `Task "${task.name}" removed`,
   };
 }
 
@@ -239,13 +255,13 @@ async function handleRun(
   const { taskId, waitForResult } = input;
 
   if (!taskId) {
-    return { success: false, message: "Missing required field: taskId" };
+    return { stderr: "Missing required field: taskId" };
   }
 
   const task = loadTask(instance, taskId);
 
   if (!task) {
-    return { success: false, message: `Task not found: ${taskId}` };
+    return { stderr: `Task not found: ${taskId}` };
   }
 
   logger.info({ taskId, waitForResult }, "Manual task execution via cron tool");
@@ -261,8 +277,7 @@ async function handleRun(
       saveTask(task);
 
       return {
-        success: true,
-        message: `Task "${task.name}" executed successfully`,
+        stdout: `Task "${task.name}" executed successfully`,
         data: {
           output: result.output,
           executedAt: result.executedAt,
@@ -280,8 +295,7 @@ async function handleRun(
       saveTask(task);
 
       return {
-        success: false,
-        message: `Task execution failed: ${errorMessage}`,
+        stderr: `Task execution failed: ${errorMessage}`,
       };
     }
   } else {
@@ -307,8 +321,7 @@ async function handleRun(
       });
 
     return {
-      success: true,
-      message: `Task "${task.name}" triggered (running in background)`,
+      stdout: `Task "${task.name}" triggered (running in background)`,
       data: { taskId: task.id },
     };
   }
@@ -319,7 +332,7 @@ export function createCronTool(options?: CronToolOptions) {
 
   return tool({
     description:
-      "Manage gateway cron jobs. Actions: status (scheduler stats), list (show tasks), add (create task), update (modify task), remove (delete task), run (execute task manually).",
+      "Manage gateway cron jobs. Both recurring and one time requests. Actions: status (scheduler stats), list (show tasks), add (create task), update (modify task), remove (delete task), run (execute task manually).",
     inputSchema,
     execute: async (input) => {
       const instance = input.instance ?? defaultInstance;
@@ -340,7 +353,7 @@ export function createCronTool(options?: CronToolOptions) {
         case "run":
           return handleRun(instance, input);
         default:
-          return { success: false, message: `Unknown action: ${input.action}` };
+          return { stderr: `Unknown action: ${input.action}` };
       }
     },
   });

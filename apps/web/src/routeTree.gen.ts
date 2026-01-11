@@ -11,7 +11,11 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthedRouteImport } from './routes/_authed'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthedConfigRouteImport } from './routes/_authed/config'
+import { Route as AuthedConfigIndexRouteImport } from './routes/_authed/config/index'
 import { Route as AuthedChatIndexRouteImport } from './routes/_authed/chat/index'
+import { Route as AuthedConfigPreferencesRouteImport } from './routes/_authed/config/preferences'
+import { Route as AuthedConfigGatewayRouteImport } from './routes/_authed/config/gateway'
 
 const AuthedRoute = AuthedRouteImport.update({
   id: '/_authed',
@@ -22,32 +26,77 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthedConfigRoute = AuthedConfigRouteImport.update({
+  id: '/config',
+  path: '/config',
+  getParentRoute: () => AuthedRoute,
+} as any)
+const AuthedConfigIndexRoute = AuthedConfigIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AuthedConfigRoute,
+} as any)
 const AuthedChatIndexRoute = AuthedChatIndexRouteImport.update({
   id: '/chat/',
   path: '/chat/',
   getParentRoute: () => AuthedRoute,
 } as any)
+const AuthedConfigPreferencesRoute = AuthedConfigPreferencesRouteImport.update({
+  id: '/preferences',
+  path: '/preferences',
+  getParentRoute: () => AuthedConfigRoute,
+} as any)
+const AuthedConfigGatewayRoute = AuthedConfigGatewayRouteImport.update({
+  id: '/gateway',
+  path: '/gateway',
+  getParentRoute: () => AuthedConfigRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/config': typeof AuthedConfigRouteWithChildren
+  '/config/gateway': typeof AuthedConfigGatewayRoute
+  '/config/preferences': typeof AuthedConfigPreferencesRoute
   '/chat': typeof AuthedChatIndexRoute
+  '/config/': typeof AuthedConfigIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/config/gateway': typeof AuthedConfigGatewayRoute
+  '/config/preferences': typeof AuthedConfigPreferencesRoute
   '/chat': typeof AuthedChatIndexRoute
+  '/config': typeof AuthedConfigIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authed': typeof AuthedRouteWithChildren
+  '/_authed/config': typeof AuthedConfigRouteWithChildren
+  '/_authed/config/gateway': typeof AuthedConfigGatewayRoute
+  '/_authed/config/preferences': typeof AuthedConfigPreferencesRoute
   '/_authed/chat/': typeof AuthedChatIndexRoute
+  '/_authed/config/': typeof AuthedConfigIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/chat'
+  fullPaths:
+    | '/'
+    | '/config'
+    | '/config/gateway'
+    | '/config/preferences'
+    | '/chat'
+    | '/config/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/chat'
-  id: '__root__' | '/' | '/_authed' | '/_authed/chat/'
+  to: '/' | '/config/gateway' | '/config/preferences' | '/chat' | '/config'
+  id:
+    | '__root__'
+    | '/'
+    | '/_authed'
+    | '/_authed/config'
+    | '/_authed/config/gateway'
+    | '/_authed/config/preferences'
+    | '/_authed/chat/'
+    | '/_authed/config/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -71,6 +120,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authed/config': {
+      id: '/_authed/config'
+      path: '/config'
+      fullPath: '/config'
+      preLoaderRoute: typeof AuthedConfigRouteImport
+      parentRoute: typeof AuthedRoute
+    }
+    '/_authed/config/': {
+      id: '/_authed/config/'
+      path: '/'
+      fullPath: '/config/'
+      preLoaderRoute: typeof AuthedConfigIndexRouteImport
+      parentRoute: typeof AuthedConfigRoute
+    }
     '/_authed/chat/': {
       id: '/_authed/chat/'
       path: '/chat'
@@ -78,14 +141,46 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedChatIndexRouteImport
       parentRoute: typeof AuthedRoute
     }
+    '/_authed/config/preferences': {
+      id: '/_authed/config/preferences'
+      path: '/preferences'
+      fullPath: '/config/preferences'
+      preLoaderRoute: typeof AuthedConfigPreferencesRouteImport
+      parentRoute: typeof AuthedConfigRoute
+    }
+    '/_authed/config/gateway': {
+      id: '/_authed/config/gateway'
+      path: '/gateway'
+      fullPath: '/config/gateway'
+      preLoaderRoute: typeof AuthedConfigGatewayRouteImport
+      parentRoute: typeof AuthedConfigRoute
+    }
   }
 }
 
+interface AuthedConfigRouteChildren {
+  AuthedConfigGatewayRoute: typeof AuthedConfigGatewayRoute
+  AuthedConfigPreferencesRoute: typeof AuthedConfigPreferencesRoute
+  AuthedConfigIndexRoute: typeof AuthedConfigIndexRoute
+}
+
+const AuthedConfigRouteChildren: AuthedConfigRouteChildren = {
+  AuthedConfigGatewayRoute: AuthedConfigGatewayRoute,
+  AuthedConfigPreferencesRoute: AuthedConfigPreferencesRoute,
+  AuthedConfigIndexRoute: AuthedConfigIndexRoute,
+}
+
+const AuthedConfigRouteWithChildren = AuthedConfigRoute._addFileChildren(
+  AuthedConfigRouteChildren,
+)
+
 interface AuthedRouteChildren {
+  AuthedConfigRoute: typeof AuthedConfigRouteWithChildren
   AuthedChatIndexRoute: typeof AuthedChatIndexRoute
 }
 
 const AuthedRouteChildren: AuthedRouteChildren = {
+  AuthedConfigRoute: AuthedConfigRouteWithChildren,
   AuthedChatIndexRoute: AuthedChatIndexRoute,
 }
 

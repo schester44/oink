@@ -2,7 +2,7 @@
 
 import cron, { ScheduledTask } from "node-cron";
 import chokidar, { FSWatcher } from "chokidar";
-import { join } from "path";
+import { join, basename } from "path";
 import { Task } from "./types.js";
 import {
   loadTask,
@@ -15,6 +15,7 @@ import { executeTask } from "./executor.js";
 import { dispatch } from "./dispatcher.js";
 import { config, getActiveTasksDir, ensureInstanceDirs } from "../config.js";
 import { logger } from "../logger.js";
+import { readSettings } from "../lib/settings.js";
 
 interface SchedulerState {
   tasks: Map<string, Task>;
@@ -79,14 +80,25 @@ function scheduleRecurringTask(task: Task): void {
   }
 
   try {
-    const job = cron.schedule(task.schedule.cron, () => {
-      handleTaskExecution(task);
-    });
+    const settings = readSettings();
+    const job = cron.schedule(
+      task.schedule.cron,
+      () => {
+        handleTaskExecution(task);
+      },
+      {
+        timezone: settings.timezone,
+      },
+    );
 
     state.cronJobs.set(task.id, job);
 
     logger.info(
-      { taskId: task.id, cron: task.schedule.cron },
+      {
+        taskId: task.id,
+        cron: task.schedule.cron,
+        timezone: settings.timezone,
+      },
       "Scheduled recurring task",
     );
   } catch (error) {
@@ -98,14 +110,28 @@ function scheduleRecurringTask(task: Task): void {
 }
 
 function unscheduleTask(taskId: string): void {
+  logger.info({ taskId }, "Unscheduling task");
+
   const job = state.cronJobs.get(taskId);
 
   if (job) {
     job.stop();
     state.cronJobs.delete(taskId);
-    logger.debug({ taskId }, "Unscheduled task");
+    logger.info({ taskId }, "Stopped and removed cron job");
+  } else {
+    logger.warn({ taskId }, "No cron job found for task");
   }
+
   state.tasks.delete(taskId);
+
+  logger.info(
+    {
+      taskId,
+      remainingTasks: state.tasks.size,
+      remainingJobs: state.cronJobs.size,
+    },
+    "Task unscheduled",
+  );
 }
 
 function handleFileChange(
@@ -113,10 +139,17 @@ function handleFileChange(
   filePath: string,
   eventType: "add" | "change" | "unlink",
 ): void {
-  const taskId = filePath.split("/").pop()?.replace(".json", "");
+  const fileName = basename(filePath);
+  const taskId = fileName.replace(".json", "");
+  logger.info(
+    { instance, filePath, eventType, taskId, fileName },
+    "File change detected",
+  );
+
   if (!taskId) return;
 
   if (eventType === "unlink") {
+    logger.info({ taskId }, "File unlinked, unscheduling task");
     unscheduleTask(taskId);
 
     return;
@@ -143,15 +176,20 @@ function setupWatcher(instance: string): void {
   const dir = getActiveTasksDir(instance);
   ensureInstanceDirs(instance);
 
-  const watcher = chokidar.watch(join(dir, "*.json"), {
+  const watcher = chokidar.watch(dir, {
     persistent: true,
     ignoreInitial: true,
+    ignored: (path, stats) => !!stats?.isFile() && !path.endsWith(".json"),
   });
 
   watcher
     .on("add", (path) => handleFileChange(instance, path, "add"))
     .on("change", (path) => handleFileChange(instance, path, "change"))
-    .on("unlink", (path) => handleFileChange(instance, path, "unlink"));
+    .on("unlink", (path) => handleFileChange(instance, path, "unlink"))
+    .on("error", (error) =>
+      logger.error({ error, instance }, "File watcher error"),
+    )
+    .on("ready", () => logger.info({ instance, dir }, "File watcher ready"));
 
   state.watchers.set(instance, watcher);
   logger.info({ instance, dir }, "File watcher started");
@@ -195,6 +233,7 @@ export async function startScheduler({
 
   // Load all instances
   const instances = listInstances();
+  console.log("\x1b[33m%s\x1b[0m", "🪵 instances", instances);
 
   if (instances.length === 0) {
     instances.push(defaultInstanceId);

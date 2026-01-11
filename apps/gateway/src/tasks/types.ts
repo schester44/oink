@@ -44,6 +44,7 @@ export interface Task {
   execution: TaskExecution;
   notifications: TaskNotifications;
   metadata: TaskMetadata;
+  sessionId?: string; // Session to save LLM results to
 }
 
 export interface ExecutionResult {

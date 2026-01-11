@@ -1,0 +1,16 @@
+import { createFileRoute } from "@tanstack/react-router";
+
+export const Route = createFileRoute("/_authed/config/gateway")({
+  component: GatewayPage,
+});
+
+function GatewayPage() {
+  return (
+    <div className="p-6">
+      <h1 className="text-2xl font-semibold mb-4">Gateway</h1>
+      <p className="text-muted-foreground">
+        Configure gateway settings here.
+      </p>
+    </div>
+  );
+}

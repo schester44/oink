@@ -60,10 +60,12 @@ function loadSkills(workspaceDir: string) {
 
 interface BuildSystemPromptOptions {
   instanceId: string;
+  userTimezone: string;
 }
 
 export function buildSystemPrompt({
   instanceId,
+  userTimezone,
 }: BuildSystemPromptOptions): string {
   const workspaceDir = getWorkspaceDir(instanceId);
   const soul = loadTemplate("SOUL.md", workspaceDir);
@@ -113,6 +115,7 @@ export function buildSystemPrompt({
 # Current Context
 
 - Current time: ${new Date().toISOString()}
+- Preferred Timezone: ${userTimezone}
 - Current working directory: ${process.cwd()}
 - Workspace directory: ${workspaceDir}
 

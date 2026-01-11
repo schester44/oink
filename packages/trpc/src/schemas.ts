@@ -65,6 +65,13 @@ export const healthStatusSchema = z.object({
   timestamp: z.string(),
 });
 
+// Settings schemas
+export const userSettingsSchema = z.object({
+  timezone: z.string(),
+});
+
+export const updateSettingsInputSchema = userSettingsSchema.partial();
+
 // Type exports
 export type Instance = z.infer<typeof instanceSchema>;
 export type CreateInstanceInput = z.infer<typeof createInstanceInputSchema>;
@@ -78,3 +85,6 @@ export type DeleteSessionInput = z.infer<typeof deleteSessionInputSchema>;
 
 export type MetricsData = z.infer<typeof metricsDataSchema>;
 export type HealthStatus = z.infer<typeof healthStatusSchema>;
+
+export type UserSettings = z.infer<typeof userSettingsSchema>;
+export type UpdateSettingsInput = z.infer<typeof updateSettingsInputSchema>;

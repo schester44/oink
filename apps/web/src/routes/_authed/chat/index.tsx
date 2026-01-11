@@ -2,10 +2,11 @@ import {
   createFileRoute,
   getRouteApi,
   useNavigate,
+  Link,
 } from "@tanstack/react-router";
 import { useChat } from "@ai-sdk/react";
 import { useRef, useState, useEffect, useMemo } from "react";
-import { Bug, Send } from "lucide-react";
+import { Bug, Send, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -341,6 +342,11 @@ function ChatPage() {
           </Button>
           <Button variant="outline" size="sm" onClick={startNewSession}>
             New Chat
+          </Button>
+          <Button variant="outline" size="sm" asChild>
+            <Link to="/config/gateway">
+              <Settings className="h-4 w-4" />
+            </Link>
           </Button>
         </div>
       </header>
