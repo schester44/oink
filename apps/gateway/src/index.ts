@@ -4,17 +4,19 @@ import {
   stopScheduler,
   getSchedulerStats,
 } from "./tasks/scheduler.js";
-import {
-  startWebSocketServer,
-  stopWebSocketServer,
-  getWebSocketStats,
-} from "./websocket.js";
 import { startTRPCServer, stopTRPCServer } from "./trpc/server.js";
+import { pluginRegistry, startChatHandler, stopChatHandler } from "./plugins/index.js";
 
 async function startGateway() {
-  logger.info("Starting Oink Gateway");
+  logger.info("Starting Pinky Gateway");
 
-  await startWebSocketServer();
+  // Start chat handler (bridges event bus to LLM)
+  startChatHandler();
+
+  // Load and start plugins
+  await pluginRegistry.loadFromConfig();
+  await pluginRegistry.startAll();
+
   await startTRPCServer();
 
   await startScheduler({
@@ -23,21 +25,21 @@ async function startGateway() {
 
   setInterval(() => {
     const schedulerStats = getSchedulerStats();
-    const wsStats = getWebSocketStats();
     logger.debug(
-      { scheduler: schedulerStats, websocket: wsStats },
+      { scheduler: schedulerStats },
       "Gateway stats",
     );
   }, 60000);
 
-  logger.info("Oink Gateway started successfully");
+  logger.info("Pinky Gateway started successfully");
 }
 
 async function shutdown() {
   logger.info("Shutting down gateway");
 
   await stopScheduler();
-  await stopWebSocketServer();
+  await pluginRegistry.stopAll();
+  stopChatHandler();
   await stopTRPCServer();
 
   logger.info("Gateway shutdown complete");
