@@ -121,9 +121,10 @@ export async function* streamChat(
         const parts: Array<{ type: "text"; text: string } | { type: "image"; image: string }> = [];
 
         for (const p of m.parts as UIMessagePart[]) {
-          if (p.type === "text" && "text" in p) {
+          // Only include text parts with valid string content
+          if (p.type === "text" && "text" in p && typeof p.text === "string" && p.text.length > 0) {
             parts.push({ type: "text", text: p.text });
-          } else if (p.type === "image" && "image" in p) {
+          } else if (p.type === "image" && "image" in p && typeof (p as ImagePart).image === "string") {
             // Format image for AI SDK: base64 data URL
             const imagePart = p as { image: string; mimeType?: string };
             const mimeType = imagePart.mimeType || "image/jpeg";
