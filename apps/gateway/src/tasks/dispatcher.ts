@@ -3,6 +3,8 @@
 import type { Server as SocketServer } from "socket.io";
 import { ExecutionResult } from "./types.js";
 import { logger } from "../logger.js";
+import { eventBus } from "../plugins/event-bus.js";
+import type { PluginNotification } from "../plugins/types.js";
 
 export interface ConnectedClient {
   socketId: string;
@@ -131,4 +133,25 @@ export async function dispatch(
   }
 
   logger.warn({ taskId: result.taskId }, "No channels available for dispatch");
+}
+
+export async function dispatchToPlugins(
+  result: ExecutionResult,
+  channels: string[] = ["websocket"],
+): Promise<void> {
+  for (const channelName of channels) {
+    const notification: PluginNotification = {
+      instanceId: result.instance,
+      pluginId: channelName,
+      chatId: "", // Will use default from plugin config
+      title: `Task: ${result.taskId}`,
+      content: [
+        { type: "text", text: result.output || "Task completed" },
+      ],
+      priority: "normal",
+    };
+
+    eventBus.emit("notification", notification);
+    logger.debug({ channelName, taskId: result.taskId }, "Notification dispatched");
+  }
 }
