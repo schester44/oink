@@ -1,0 +1,13 @@
+{
+  "plugins": {
+    "websocket": {
+      "enabled": true
+    },
+    "telegram": {
+      "enabled": false,
+      "botToken": "${TELEGRAM_BOT_TOKEN}",
+      "instanceId": "default",
+      "notificationChatId": ""
+    }
+  }
+}
