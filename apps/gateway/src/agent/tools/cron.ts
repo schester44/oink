@@ -18,6 +18,8 @@ import type { Task, TaskExecution } from "../../tasks/types.js";
 
 interface CronToolOptions {
   instanceId?: string;
+  /** The source channel for notifications (e.g., "telegram", "websocket") */
+  sourceChannel?: string;
 }
 
 interface CronResult {
@@ -115,6 +117,7 @@ async function handleList(instance: string): Promise<CronResult> {
 async function handleAdd(
   instance: string,
   input: CronInput,
+  sourceChannel?: string,
 ): Promise<CronResult> {
   const { name, cron, executionType, executionPayload, description, sessionId } = input;
 
@@ -152,6 +155,7 @@ async function handleAdd(
     schedule: { type: "recurring", cron },
     execution,
     sessionId,
+    channels: sourceChannel ? [sourceChannel] : undefined,
   };
 
   const task = createTask(taskInput);
@@ -329,6 +333,7 @@ async function handleRun(
 
 export function createCronTool(options?: CronToolOptions) {
   const defaultInstance = options?.instanceId ?? DEFAULT_INSTANCE_ID;
+  const sourceChannel = options?.sourceChannel;
 
   return tool({
     description:
@@ -337,7 +342,7 @@ export function createCronTool(options?: CronToolOptions) {
     execute: async (input) => {
       const instance = input.instance ?? defaultInstance;
 
-      logger.debug({ action: input.action, instance }, "Cron tool invoked");
+      logger.debug({ action: input.action, instance, sourceChannel }, "Cron tool invoked");
 
       switch (input.action) {
         case "status":
@@ -345,7 +350,7 @@ export function createCronTool(options?: CronToolOptions) {
         case "list":
           return handleList(instance);
         case "add":
-          return handleAdd(instance, input);
+          return handleAdd(instance, input, sourceChannel);
         case "update":
           return handleUpdate(instance, input);
         case "remove":

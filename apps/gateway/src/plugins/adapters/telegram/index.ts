@@ -126,6 +126,8 @@ export function create(
     },
 
     async send(chatId: string, message: OutgoingMessage): Promise<void> {
+      console.log("\x1b[33m%s\x1b[0m", "🪵 message", message);
+      console.log("\x1b[33m%s\x1b[0m", "🪵 chatId", chatId);
       if (!bot) {
         logger.warn("Bot not initialized");
 

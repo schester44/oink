@@ -10,6 +10,8 @@ import type { SessionManager } from "../session/index.js";
 interface CreateToolsOptions {
   session?: SessionManager;
   instanceId?: string;
+  /** The source channel/plugin for notification routing (e.g., "telegram", "websocket") */
+  sourceChannel?: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   additionalTools?: Record<string, any>;
 }
@@ -24,6 +26,7 @@ export function createTools(opts?: CreateToolsOptions) {
     }),
     cron: createCronTool({
       instanceId,
+      sourceChannel: opts?.sourceChannel,
     }),
     edit: createEditTool({
       workspaceDir,

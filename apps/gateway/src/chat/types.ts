@@ -26,4 +26,6 @@ export interface ChatRequest {
   sessionId?: string;
   instanceId: string;
   message: ChatMessage;
+  /** The plugin/channel that originated this request (e.g., "telegram", "websocket") */
+  sourceChannel?: string;
 }
