@@ -115,29 +115,32 @@ export async function* streamChat(
 
     // Convert session messages to AI SDK format for validation
     // Include text and image parts for vision support
-    const messagesForValidation = previousMessages.map((m) => {
-      const parts: Array<{ type: "text"; text: string } | { type: "image"; image: string }> = [];
+    // Filter out messages with empty parts (validation requires at least 1 part)
+    const messagesForValidation = previousMessages
+      .map((m) => {
+        const parts: Array<{ type: "text"; text: string } | { type: "image"; image: string }> = [];
 
-      for (const p of m.parts as UIMessagePart[]) {
-        if (p.type === "text" && "text" in p) {
-          parts.push({ type: "text", text: p.text });
-        } else if (p.type === "image" && "image" in p) {
-          // Format image for AI SDK: base64 data URL
-          const imagePart = p as { image: string; mimeType?: string };
-          const mimeType = imagePart.mimeType || "image/jpeg";
-          parts.push({
-            type: "image",
-            image: `data:${mimeType};base64,${imagePart.image}`,
-          });
+        for (const p of m.parts as UIMessagePart[]) {
+          if (p.type === "text" && "text" in p) {
+            parts.push({ type: "text", text: p.text });
+          } else if (p.type === "image" && "image" in p) {
+            // Format image for AI SDK: base64 data URL
+            const imagePart = p as { image: string; mimeType?: string };
+            const mimeType = imagePart.mimeType || "image/jpeg";
+            parts.push({
+              type: "image",
+              image: `data:${mimeType};base64,${imagePart.image}`,
+            });
+          }
         }
-      }
 
-      return {
-        id: m.id,
-        role: m.role as "user" | "assistant",
-        parts,
-      };
-    });
+        return {
+          id: m.id,
+          role: m.role as "user" | "assistant",
+          parts,
+        };
+      })
+      .filter((m) => m.parts.length > 0);
 
     const validatedMessages = await validateUIMessages({
       messages: messagesForValidation,
