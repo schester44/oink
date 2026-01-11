@@ -5,8 +5,10 @@ import { Server as SocketServer, Socket } from "socket.io";
 import { config } from "../../../lib/config.js";
 import { logger } from "../../../lib/logger.js";
 import { eventBus } from "../../event-bus.js";
-import type { MessagePlugin, WebSocketPluginConfig, OutgoingMessage } from "../../types.js";
+import type { MessagePlugin, WebSocketPluginConfig, OutgoingMessage, PluginNotification } from "../../types.js";
 import { setupSocketHandlers, createOutgoingHandler, createChunkHandler } from "./handlers.js";
+
+const PLUGIN_ID = "websocket";
 
 export function create(
   pluginConfig: WebSocketPluginConfig,
@@ -21,6 +23,31 @@ export function create(
   // Store handler references for proper cleanup
   const outgoingHandler = createOutgoingHandler(getSocket);
   const chunkHandler = createChunkHandler(getSocket);
+
+  // Handle notifications (scheduled tasks, reminders, etc.)
+  const handleNotification = (notification: PluginNotification): void => {
+    if (notification.pluginId !== PLUGIN_ID) return;
+
+    const textContent = notification.content.find((c) => c.type === "text");
+    if (!textContent || textContent.type !== "text") return;
+
+    // Send to all connected sockets for this instance
+    for (const [socketId, socket] of sockets) {
+      socket.emit("notification", {
+        type: "scheduled-task",
+        title: notification.title,
+        message: textContent.text,
+        instanceId: notification.instanceId,
+        priority: notification.priority,
+      });
+    }
+
+    logger.debug(
+      { socketCount: sockets.size, title: notification.title },
+      "WebSocket notification sent"
+    );
+  };
+  const notificationHandler = handleNotification;
 
   return {
     id: "websocket",
@@ -48,9 +75,10 @@ export function create(
           });
         });
 
-        // Subscribe to outgoing events
+        // Subscribe to outgoing events and notifications
         eventBus.on("outgoing", outgoingHandler);
         eventBus.on("outgoing-chunk", chunkHandler);
+        eventBus.on("notification", notificationHandler);
 
         httpServer.on("error", reject);
 
@@ -65,6 +93,7 @@ export function create(
       return new Promise((resolve) => {
         eventBus.off("outgoing", outgoingHandler);
         eventBus.off("outgoing-chunk", chunkHandler);
+        eventBus.off("notification", notificationHandler);
 
         if (io) {
           io.close(() => {
