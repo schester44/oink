@@ -1,5 +1,11 @@
 [build]
+  command = "echo 'No build needed'"
   publish = "."
+  ignore = "exit 0"
+
+[build.environment]
+  NPM_FLAGS = "--prefix=/dev/null"
+  YARN_FLAGS = "--cwd=/dev/null"
 
 [[redirects]]
   from = "/*"
