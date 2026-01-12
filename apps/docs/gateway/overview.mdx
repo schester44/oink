@@ -1,0 +1,148 @@
+---
+title: Gateway Overview
+description: "The central hub of the Pinky system"
+---
+
+## What is the Gateway?
+
+The Gateway is the core service that powers Pinky. It acts as the central hub that:
+
+- Manages connections from multiple clients (web, Telegram, TUI)
+- Routes messages to the AI agent
+- Handles session persistence
+- Schedules and executes tasks
+- Provides management APIs
+
+## Starting the Gateway
+
+### Development Mode
+
+```bash
+cd apps/gateway
+yarn dev
+```
+
+This starts the gateway with hot-reloading enabled, watching for file changes.
+
+### Production Mode
+
+```bash
+cd apps/gateway
+yarn build
+yarn start
+```
+
+## Ports and Endpoints
+
+| Port | Protocol | Description |
+|------|----------|-------------|
+| 4445 | WebSocket | Real-time client connections |
+| 4446 | HTTP | tRPC API for management |
+
+## Key Features
+
+### Multi-Instance Support
+
+Pinky supports multiple isolated instances, each with their own:
+
+- Sessions and conversation history
+- Brain (skills, memory)
+- Scheduled tasks
+
+```typescript
+// Each request specifies an instance
+const request = {
+  instanceId: "default",  // or "work", "personal", etc.
+  message: { ... }
+};
+```
+
+### Plugin System
+
+The gateway loads and manages plugins that provide different communication channels:
+
+```json
+// ~/.pinky/plugins.json
+{
+  "plugins": {
+    "websocket": { "enabled": true },
+    "telegram": { 
+      "enabled": true,
+      "botToken": "${TELEGRAM_BOT_TOKEN}"
+    }
+  }
+}
+```
+
+### Event-Driven Architecture
+
+All communication flows through a typed event bus:
+
+```typescript
+// Plugins emit incoming messages
+eventBus.emit("incoming", {
+  id: "msg-123",
+  pluginId: "telegram",
+  chatId: "user-456",
+  content: [{ type: "text", text: "Hello!" }],
+  // ...
+});
+
+// Plugins listen for responses
+eventBus.on("outgoing", (message) => {
+  // Send to the appropriate client
+});
+```
+
+### Streaming Responses
+
+Responses are streamed in real-time using AI SDK compatible chunks:
+
+```typescript
+for await (const chunk of streamChat(request)) {
+  switch (chunk.type) {
+    case "text-delta":
+      // Append to response
+      break;
+    case "tool-input-available":
+      // Tool is being called
+      break;
+    case "finish":
+      // Response complete
+      break;
+  }
+}
+```
+
+## Agent Service
+
+The agent service uses `@mariozechner/pi-coding-agent` to provide:
+
+- **Session Management**: Persistent conversation history
+- **Built-in Tools**: read, write, edit, bash
+- **Custom Tools**: cron scheduling, etc.
+- **Skill Discovery**: Loads skills from brain directory
+
+### Session Lifecycle
+
+1. **Creation**: New session when client connects without session ID
+2. **Caching**: Active sessions cached in memory for performance
+3. **Persistence**: All messages saved to `.jsonl` files
+4. **Cleanup**: Inactive sessions removed after 30 minutes
+
+## Related Pages
+
+<CardGroup cols={2}>
+  <Card title="Configuration" icon="gear" href="/gateway/configuration">
+    Configure the gateway
+  </Card>
+  <Card title="Plugins" icon="plug" href="/gateway/plugins">
+    Plugin system details
+  </Card>
+  <Card title="Sessions" icon="comments" href="/gateway/sessions">
+    Session management
+  </Card>
+  <Card title="Tasks" icon="clock" href="/gateway/tasks">
+    Scheduled tasks
+  </Card>
+</CardGroup>

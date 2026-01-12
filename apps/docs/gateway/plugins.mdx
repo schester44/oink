@@ -1,0 +1,182 @@
+---
+title: Plugin System
+description: "How the gateway plugin system works"
+---
+
+## Overview
+
+Plugins are adapters that connect external services to Pinky. They handle:
+
+- Receiving messages from external sources
+- Normalizing messages to a common format
+- Sending responses back to clients
+- Handling media (images, audio, files)
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                      Event Bus                           │
+│                                                          │
+│   incoming ──────────────────────────▶ Chat Handler     │
+│                                              │           │
+│   outgoing ◀─────────────────────────────────┤           │
+│   outgoing-chunk ◀───────────────────────────┤           │
+│   notification ◀─────────────────────────────┘           │
+└────────────────────────────────────────────────────────┘
+        ▲                    ▲                    ▲
+        │                    │                    │
+   ┌────┴────┐          ┌────┴────┐          ┌───┴────┐
+   │WebSocket│          │Telegram │          │  TUI   │
+   │ Plugin  │          │ Plugin  │          │ Plugin │
+   └─────────┘          └─────────┘          └────────┘
+```
+
+## Plugin Interface
+
+All plugins implement the `MessagePlugin` interface:
+
+```typescript
+interface MessagePlugin {
+  id: string;
+  start(): Promise<void>;
+  stop(): Promise<void>;
+  send(chatId: string, message: OutgoingMessage): Promise<void>;
+  sendNotification?(chatId: string, notification: PluginNotification): Promise<void>;
+}
+```
+
+## Message Types
+
+### NormalizedMessage (Incoming)
+
+When a plugin receives a message, it normalizes it to this format:
+
+```typescript
+interface NormalizedMessage {
+  id: string;                    // Unique message ID
+  pluginId: string;              // "telegram", "websocket", etc.
+  chatId: string;                // Client identifier
+  sessionId: string;             // Conversation session
+  instanceId: string;            // Pinky instance
+  sender: {
+    id: string;
+    name?: string;
+    username?: string;
+  };
+  content: MessageContent[];     // Text, images, audio, files
+  timestamp: Date;
+  replyTo?: string;              // Reply to message ID
+  hasVoice?: boolean;            // Was this a voice message?
+}
+```
+
+### MessageContent Types
+
+```typescript
+type MessageContent =
+  | { type: "text"; text: string }
+  | { type: "image"; localPath: string; mimeType: string }
+  | { type: "audio"; localPath: string; mimeType: string; transcription?: string }
+  | { type: "file"; localPath: string; filename: string; mimeType: string };
+```
+
+### OutgoingMessage
+
+Responses sent back to clients:
+
+```typescript
+interface OutgoingMessage {
+  sessionId: string;
+  chatId: string;
+  pluginId: string;
+  content: OutgoingContent[];
+  isStreaming: boolean;          // Still receiving chunks
+  isComplete: boolean;           // Final message
+  rawChunk?: unknown;            // AI SDK UIMessageChunk for streaming
+  respondWithVoice?: boolean;    // Should respond with TTS
+}
+```
+
+## Event Flow
+
+### Incoming Message
+
+```typescript
+// 1. Plugin receives message from external source
+socket.on("chat", (data) => {
+  
+  // 2. Normalize to common format
+  const normalized: NormalizedMessage = {
+    id: uuid(),
+    pluginId: "websocket",
+    chatId: socket.id,
+    sessionId: data.sessionId || `web:${socket.id}:${uuid()}`,
+    instanceId: data.instanceId || defaultInstance,
+    sender: { id: socket.id },
+    content: [{ type: "text", text: data.message.content }],
+    timestamp: new Date(),
+  };
+  
+  // 3. Emit to event bus
+  eventBus.emit("incoming", normalized);
+});
+```
+
+### Outgoing Response
+
+```typescript
+// 1. Subscribe to outgoing events
+eventBus.on("outgoing-chunk", (message) => {
+  // Only handle messages for this plugin
+  if (message.pluginId !== PLUGIN_ID) return;
+  
+  // 2. Get the target client
+  const socket = getSocket(message.chatId);
+  if (!socket) return;
+  
+  // 3. Send streaming chunk
+  if (message.rawChunk) {
+    socket.emit("chat-chunk", message.rawChunk);
+  }
+});
+
+eventBus.on("outgoing", (message) => {
+  if (message.pluginId !== PLUGIN_ID) return;
+  
+  // 4. Send completion signal
+  if (message.isComplete) {
+    socket.emit("chat-complete", { sessionId: message.sessionId });
+  }
+});
+```
+
+## Plugin Registry
+
+Plugins are loaded dynamically from the `plugins.json` configuration:
+
+```typescript
+// Registry loads plugins based on config
+async loadPlugin(id: string, settings: PluginConfig): Promise<void> {
+  const adapterModule = await import(`./adapters/${id}/index.js`);
+  const plugin = adapterModule.create(settings, eventBus);
+  this.plugins.set(id, plugin);
+}
+```
+
+## Available Plugins
+
+<CardGroup cols={2}>
+  <Card title="WebSocket" icon="plug" href="/plugins/websocket">
+    Real-time web client connections via Socket.IO
+  </Card>
+  <Card title="Telegram" icon="paper-plane" href="/plugins/telegram">
+    Telegram bot integration with voice support
+  </Card>
+  <Card title="TUI" icon="terminal" href="/plugins/tui">
+    Terminal user interface client
+  </Card>
+  <Card title="Create Your Own" icon="code" href="/plugins/creating-plugins">
+    Build custom plugins
+  </Card>
+</CardGroup>

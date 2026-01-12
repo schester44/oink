@@ -1,0 +1,119 @@
+---
+title: Quickstart
+description: "Get Pinky up and running in 5 minutes"
+---
+
+## Prerequisites
+
+- Node.js 22+ (use nvm: `nvm install 22`)
+- Yarn package manager
+- An Anthropic API key
+
+## Installation
+
+<Steps>
+  <Step title="Clone the repository">
+    ```bash
+    git clone https://github.com/schester44/oink.git
+    cd pinky
+    ```
+  </Step>
+  
+  <Step title="Install dependencies">
+    ```bash
+    yarn install
+    ```
+  </Step>
+  
+  <Step title="Configure environment">
+    Create the gateway environment file:
+    
+    ```bash
+    cp apps/gateway/.env.example apps/gateway/.env
+    ```
+    
+    Edit `apps/gateway/.env` and add your API keys:
+    
+    ```bash
+    ANTHROPIC_API_KEY="sk-ant-..."
+    
+    # Optional: For Telegram integration
+    TELEGRAM_BOT_TOKEN="..."
+    
+    # Optional: For voice features
+    ELEVENLABS_API_KEY="..."
+    ```
+  </Step>
+  
+  <Step title="Configure plugins">
+    Create the plugins configuration:
+    
+    ```bash
+    mkdir -p ~/.pinky
+    cp apps/gateway/plugins.example.json ~/.pinky/plugins.json
+    ```
+    
+    Edit `~/.pinky/plugins.json` to enable desired plugins:
+    
+    ```json
+    {
+      "plugins": {
+        "websocket": {
+          "enabled": true
+        },
+        "telegram": {
+          "enabled": false,
+          "botToken": "${TELEGRAM_BOT_TOKEN}",
+          "instanceId": "default"
+        }
+      }
+    }
+    ```
+  </Step>
+  
+  <Step title="Start the gateway">
+    ```bash
+    cd apps/gateway
+    yarn dev
+    ```
+    
+    You should see:
+    ```
+    INFO: Starting Pinky Gateway
+    INFO: WebSocket plugin started { port: 4445 }
+    INFO: tRPC server listening { port: 4446 }
+    INFO: Pinky Gateway started successfully
+    ```
+  </Step>
+  
+  <Step title="Start the web client (optional)">
+    In a new terminal:
+    
+    ```bash
+    cd apps/web
+    yarn dev
+    ```
+    
+    Open http://localhost:4444 in your browser.
+  </Step>
+</Steps>
+
+## Quick Test with TUI
+
+You can quickly test Pinky using the terminal client:
+
+```bash
+node apps/gateway/tui-client.mjs
+```
+
+This connects to the gateway via WebSocket and lets you chat directly from your terminal.
+
+```
+╔════════════════════════════════════════╗
+║       🐷 Oink TUI Chat Client          ║
+╚════════════════════════════════════════╝
+
+✓ Connected (instance: default)
+Commands: /quit, /new, /session, /help
+
+You: Hello, who are you?

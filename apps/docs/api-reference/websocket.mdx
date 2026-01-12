@@ -1,0 +1,314 @@
+---
+title: WebSocket API
+description: "Real-time chat and streaming API"
+---
+
+## Overview
+
+The WebSocket API provides real-time bidirectional communication for chat. It uses Socket.IO and runs on port `4445` by default.
+
+## Connection
+
+```typescript
+import { io } from "socket.io-client";
+
+const socket = io("http://localhost:4445", {
+  query: { instance: "default" },
+  transports: ["websocket"],
+});
+```
+
+### Connection Options
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `instance` | string | Target instance (query param) |
+| `transports` | string[] | Use `["websocket"]` for best performance |
+
+## Client → Server Events
+
+### `chat`
+
+Send a chat message.
+
+```typescript
+socket.emit("chat", {
+  instanceId: "default",      // Optional, uses connection default
+  sessionId: "session-123",   // Optional, creates new if omitted
+  message: {
+    id: "unique-msg-id",
+    role: "user",
+    content: "Hello, Pinky!"
+  }
+});
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `instanceId` | string | No | Target instance |
+| `sessionId` | string | No | Continue existing session |
+| `message.id` | string | Yes | Unique message ID |
+| `message.role` | string | Yes | Always "user" |
+| `message.content` | string | Yes | Message text |
+
+### `switch-instance`
+
+Switch to a different instance.
+
+```typescript
+socket.emit("switch-instance", "work");
+```
+
+### `ping`
+
+Health check.
+
+```typescript
+socket.emit("ping");
+```
+
+## Server → Client Events
+
+### `session-id`
+
+Sent when server assigns/confirms a session ID.
+
+```typescript
+socket.on("session-id", (data) => {
+  console.log(data.sessionId);  // "session-2024-01-15-abc123"
+});
+```
+
+### `chat-chunk`
+
+Streaming response chunks (AI SDK compatible).
+
+```typescript
+socket.on("chat-chunk", (chunk) => {
+  switch (chunk.type) {
+    case "start":
+      // Response starting
+      console.log("Session:", chunk.sessionId);
+      break;
+      
+    case "text-start":
+      // Text block starting
+      break;
+      
+    case "text-delta":
+      // Text content
+      process.stdout.write(chunk.delta);
+      break;
+      
+    case "text-end":
+      // Text block complete
+      break;
+      
+    case "start-step":
+      // New turn starting
+      break;
+      
+    case "finish-step":
+      // Turn complete
+      break;
+      
+    case "tool-input-start":
+      // Tool invocation starting
+      console.log("Calling tool:", chunk.toolName);
+      break;
+      
+    case "tool-input-available":
+      // Tool input ready
+      console.log("Tool input:", chunk.input);
+      break;
+      
+    case "tool-output-available":
+      // Tool result
+      console.log("Tool output:", chunk.output);
+      break;
+      
+    case "finish":
+      // Response complete
+      console.log("Finished:", chunk.finishReason);
+      break;
+      
+    case "error":
+      // Error occurred
+      console.error("Error:", chunk.errorText);
+      break;
+  }
+});
+```
+
+### Chunk Types
+
+| Type | Fields | Description |
+|------|--------|-------------|
+| `start` | `messageId`, `sessionId` | Response starting |
+| `text-start` | `id` | Text block starting |
+| `text-delta` | `id`, `delta` | Text content chunk |
+| `text-end` | `id` | Text block complete |
+| `start-step` | - | New turn/step starting |
+| `finish-step` | - | Turn/step complete |
+| `tool-input-start` | `toolCallId`, `toolName` | Tool call starting |
+| `tool-input-available` | `toolCallId`, `toolName`, `input` | Tool input ready |
+| `tool-output-available` | `toolCallId`, `output` | Tool result available |
+| `finish` | `finishReason` | Response complete |
+| `error` | `errorText` | Error occurred |
+
+### `chat-complete`
+
+Sent when response is fully complete.
+
+```typescript
+socket.on("chat-complete", (data) => {
+  console.log("Complete:", data.sessionId);
+});
+```
+
+### `chat-message`
+
+Non-streamed message (from scheduled tasks).
+
+```typescript
+socket.on("chat-message", (data) => {
+  console.log(data.role);     // "assistant"
+  console.log(data.content);  // Full message text
+  console.log(data.sessionId);
+});
+```
+
+### `instance-switched`
+
+Confirms instance switch.
+
+```typescript
+socket.on("instance-switched", (data) => {
+  console.log("Now using:", data.instance);
+});
+```
+
+### `notification`
+
+Scheduled task notification.
+
+```typescript
+socket.on("notification", (data) => {
+  console.log(data.type);       // "scheduled-task"
+  console.log(data.title);      // Notification title
+  console.log(data.message);    // Notification content
+  console.log(data.instanceId);
+  console.log(data.priority);   // "normal" | "high"
+});
+```
+
+### `pong`
+
+Health check response.
+
+```typescript
+socket.on("pong", (data) => {
+  console.log(data.timestamp);  // Server timestamp
+});
+```
+
+## Complete Example
+
+```typescript
+import { io } from "socket.io-client";
+import { randomUUID } from "crypto";
+import readline from "readline";
+
+// Connect
+const socket = io("http://localhost:4445", {
+  query: { instance: "default" },
+  transports: ["websocket"],
+});
+
+let sessionId: string | null = null;
+
+// Handle events
+socket.on("connect", () => console.log("Connected"));
+socket.on("disconnect", () => console.log("Disconnected"));
+
+socket.on("session-id", (data) => {
+  sessionId = data.sessionId;
+});
+
+socket.on("chat-chunk", (chunk) => {
+  if (chunk.type === "text-delta") {
+    process.stdout.write(chunk.delta);
+  }
+  if (chunk.type === "start" && chunk.sessionId) {
+    sessionId = chunk.sessionId;
+  }
+});
+
+socket.on("chat-complete", () => {
+  console.log("\n");
+  rl.prompt();
+});
+
+socket.on("notification", (data) => {
+  console.log(`\n📢 [${data.title}] ${data.message}\n`);
+  rl.prompt();
+});
+
+// Interactive prompt
+const rl = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout,
+});
+
+rl.on("line", (input) => {
+  if (input.trim()) {
+    socket.emit("chat", {
+      sessionId,
+      message: {
+        id: randomUUID(),
+        role: "user",
+        content: input.trim(),
+      },
+    });
+  } else {
+    rl.prompt();
+  }
+});
+
+rl.prompt();
+```
+
+## Error Handling
+
+```typescript
+socket.on("connect_error", (error) => {
+  console.error("Connection failed:", error.message);
+});
+
+socket.on("chat-chunk", (chunk) => {
+  if (chunk.type === "error") {
+    console.error("Chat error:", chunk.errorText);
+  }
+});
+```
+
+## Reconnection
+
+Socket.IO handles reconnection automatically. You can customize:
+
+```typescript
+const socket = io("http://localhost:4445", {
+  reconnection: true,
+  reconnectionAttempts: 5,
+  reconnectionDelay: 1000,
+  reconnectionDelayMax: 5000,
+});
+
+socket.on("reconnect", (attemptNumber) => {
+  console.log("Reconnected after", attemptNumber, "attempts");
+});
+
+socket.on("reconnect_error", (error) => {
+  console.error("Reconnection failed:", error.message);
+});
+```

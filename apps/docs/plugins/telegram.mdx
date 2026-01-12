@@ -1,0 +1,200 @@
+---
+title: Telegram Plugin
+description: "Telegram bot integration with voice and image support"
+---
+
+## Overview
+
+The Telegram plugin allows you to chat with Pinky through a Telegram bot. It supports:
+
+- Text messages
+- Voice messages (with transcription)
+- Images (with vision)
+- Markdown formatting in responses
+
+## Setup
+
+### 1. Create a Telegram Bot
+
+1. Open Telegram and search for [@BotFather](https://t.me/BotFather)
+2. Send `/newbot` and follow the prompts
+3. Copy the bot token
+
+### 2. Configure the Plugin
+
+Add to your environment:
+
+```bash
+# apps/gateway/.env
+TELEGRAM_BOT_TOKEN="your-bot-token-here"
+```
+
+Enable in `~/.pinky/plugins.json`:
+
+```json
+{
+  "plugins": {
+    "telegram": {
+      "enabled": true,
+      "botToken": "${TELEGRAM_BOT_TOKEN}",
+      "instanceId": "default",
+      "notificationChatId": ""
+    }
+  }
+}
+```
+
+### 3. Start Chatting
+
+Start a conversation with your bot in Telegram!
+
+## Configuration Options
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `enabled` | boolean | Enable/disable the plugin |
+| `botToken` | string | Telegram bot token from BotFather |
+| `instanceId` | string | Which Pinky instance to use |
+| `notificationChatId` | string | Chat ID for scheduled notifications |
+
+## Features
+
+### Text Messages
+
+Simply type messages to your bot. Pinky will respond with markdown-formatted text.
+
+### Voice Messages
+
+Send voice messages to Pinky:
+
+1. Voice is downloaded and transcribed
+2. Transcription is sent to the AI
+3. Response can optionally be spoken back (if TTS enabled)
+
+**Transcription Config:**
+
+```json
+{
+  "transcription": {
+    "provider": "auto",
+    "localWhisper": {
+      "modelSize": "base.en"
+    }
+  }
+}
+```
+
+### Images
+
+Send images to Pinky for vision analysis:
+
+```
+You: [sends image of a chart]
+You: What does this chart show?
+
+Pinky: This appears to be a bar chart showing quarterly sales...
+```
+
+### TTS Responses
+
+Enable text-to-speech for voice responses:
+
+```json
+{
+  "tts": {
+    "enabled": true,
+    "provider": "elevenlabs",
+    "voiceReplyOnly": true,
+    "elevenlabs": {
+      "apiKey": "${ELEVENLABS_API_KEY}",
+      "voiceId": "21m00Tcm4TlvDq8ikWAM"
+    }
+  }
+}
+```
+
+With `voiceReplyOnly: true`, Pinky only speaks when you send a voice message.
+
+## Session Management
+
+Each Telegram user gets an isolated session directory:
+
+```
+~/.pinky/instances/default/sessions/
+└── telegram_123456789/
+    └── session-2024-01-15-abc123.jsonl
+```
+
+This ensures:
+- Conversations are private per user
+- Context is maintained across messages
+- Different users don't see each other's history
+
+## Notifications
+
+Scheduled tasks can send notifications to Telegram:
+
+```yaml
+# Task configuration
+notifications:
+  channels:
+    - telegram
+  priority: normal
+```
+
+Set `notificationChatId` to receive notifications in a specific chat.
+
+## Markdown Support
+
+Responses are automatically formatted for Telegram:
+
+- **Bold** and *italic* text
+- `Code` and code blocks
+- Lists and headers
+- Links
+
+## Bot Commands
+
+You can optionally set up bot commands via BotFather:
+
+```
+/start - Start chatting with Pinky
+/new - Start a new conversation
+/help - Get help
+```
+
+## Error Handling
+
+The plugin handles common issues gracefully:
+
+- **Network errors**: Retries with exponential backoff
+- **Rate limits**: Respects Telegram's rate limits
+- **Large files**: Skips files over Telegram's size limit
+- **Transcription failures**: Falls back to "[Voice message]"
+
+## Example Conversation
+
+```
+You: Hey Pinky, what's on my calendar today?
+
+Pinky: Let me check your calendar...
+
+📅 **Today's Schedule**
+
+• 9:00 AM - Team standup
+• 11:00 AM - 1:1 with Sarah
+• 2:00 PM - Sprint planning
+• 4:00 PM - Code review
+
+You have 4 meetings today. Your first one starts in 30 minutes.
+```
+
+## Debugging
+
+Enable debug logging to troubleshoot issues:
+
+```bash
+LOG_LEVEL=debug yarn dev
+```
+
+Look for log entries with `pluginId: "telegram"`.

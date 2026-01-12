@@ -1,0 +1,234 @@
+---
+title: Local Setup
+description: "Set up Pinky for local development"
+---
+
+## Prerequisites
+
+- **Node.js 22+**: Use nvm for easy version management
+- **Yarn**: Package manager
+- **Anthropic API Key**: For Claude access
+
+## Clone and Install
+
+```bash
+# Clone the repository
+git clone https://github.com/schester44/oink.git
+cd pinky
+
+# Use correct Node version
+nvm use
+
+# Install dependencies
+yarn install
+```
+
+## Configuration
+
+### 1. Gateway Environment
+
+```bash
+# Create .env file
+cp apps/gateway/.env.example apps/gateway/.env
+
+# Edit with your API keys
+vim apps/gateway/.env
+```
+
+Required:
+```bash
+ANTHROPIC_API_KEY="sk-ant-..."
+```
+
+Optional:
+```bash
+TELEGRAM_BOT_TOKEN="..."
+ELEVENLABS_API_KEY="..."
+OPENAI_API_KEY="..."
+```
+
+### 2. Plugins Configuration
+
+```bash
+# Create config directory
+mkdir -p ~/.pinky
+
+# Copy example config
+cp apps/gateway/plugins.example.json ~/.pinky/plugins.json
+
+# Edit to enable desired plugins
+vim ~/.pinky/plugins.json
+```
+
+## Running Locally
+
+### Gateway Only
+
+```bash
+cd apps/gateway
+yarn dev
+```
+
+### Gateway + Web Client
+
+Terminal 1:
+```bash
+cd apps/gateway
+yarn dev
+```
+
+Terminal 2:
+```bash
+cd apps/web
+yarn dev
+```
+
+### Using Turborepo
+
+From the root, run all services:
+
+```bash
+yarn dev
+```
+
+## Project Structure
+
+```
+pinky/
+├── apps/
+│   ├── gateway/          # Core gateway service
+│   │   ├── src/
+│   │   │   ├── agent/    # LLM agent service
+│   │   │   ├── chat/     # Chat utilities
+│   │   │   ├── plugins/  # Plugin system
+│   │   │   ├── tasks/    # Scheduler
+│   │   │   └── trpc/     # API server
+│   │   └── package.json
+│   ├── web/              # React web client
+│   └── docs/             # This documentation
+├── packages/
+│   └── trpc/             # Shared tRPC types
+└── package.json          # Root workspace
+```
+
+## Development Workflow
+
+### Making Changes
+
+1. Edit code in `apps/` or `packages/`
+2. Changes auto-reload in dev mode
+3. TypeScript errors show in terminal
+
+### Building
+
+```bash
+# Build everything
+yarn build
+
+# Build specific package
+cd apps/gateway && yarn build
+```
+
+### Type Checking
+
+```bash
+# Check all packages
+yarn typecheck
+
+# Check specific package
+cd apps/gateway && yarn typecheck
+```
+
+### Linting
+
+```bash
+yarn lint
+```
+
+## Testing
+
+### TUI Client
+
+Quick test without web UI:
+
+```bash
+node apps/gateway/tui-client.mjs
+```
+
+### Test Client Script
+
+```bash
+node apps/gateway/test-client.mjs
+```
+
+## Debugging
+
+### Enable Debug Logs
+
+```bash
+LOG_LEVEL=debug yarn dev
+```
+
+### Pretty Print Logs
+
+```bash
+yarn dev 2>&1 | npx pino-pretty
+```
+
+### VS Code Debug
+
+Add to `.vscode/launch.json`:
+
+```json
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Debug Gateway",
+      "cwd": "${workspaceFolder}/apps/gateway",
+      "runtimeExecutable": "yarn",
+      "runtimeArgs": ["dev"],
+      "console": "integratedTerminal"
+    }
+  ]
+}
+```
+
+## Common Issues
+
+### Port Already in Use
+
+```bash
+# Find process using port
+lsof -i :4445
+
+# Kill it
+kill -9 <PID>
+```
+
+### Missing API Key
+
+```
+Error: ANTHROPIC_API_KEY not set
+```
+
+Make sure your `.env` file exists and is in `apps/gateway/`.
+
+### Module Not Found
+
+```bash
+# Rebuild everything
+yarn build
+
+# Or reinstall
+rm -rf node_modules
+yarn install
+```
+
+## Next Steps
+
+- [Architecture Overview](/architecture)
+- [Creating Plugins](/plugins/creating-plugins)
+- [API Reference](/api-reference/overview)

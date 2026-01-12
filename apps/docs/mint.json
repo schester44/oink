@@ -1,0 +1,102 @@
+{
+  "$schema": "https://mintlify.com/schema.json",
+  "name": "Pinky Documentation",
+  "logo": {
+    "dark": "/logo/dark.svg",
+    "light": "/logo/light.svg"
+  },
+  "favicon": "/favicon.svg",
+  "colors": {
+    "primary": "#E91E8C",
+    "light": "#F472B6",
+    "dark": "#DB2777",
+    "anchors": {
+      "from": "#E91E8C",
+      "to": "#F472B6"
+    }
+  },
+  "topbarLinks": [
+    {
+      "name": "GitHub",
+      "url": "https://github.com/schester44/oink"
+    }
+  ],
+  "topbarCtaButton": {
+    "name": "Get Started",
+    "url": "/quickstart"
+  },
+  "tabs": [
+    {
+      "name": "Documentation",
+      "url": "/"
+    },
+    {
+      "name": "API Reference",
+      "url": "/api-reference"
+    }
+  ],
+  "anchors": [],
+  "navigation": [
+    {
+      "group": "Getting Started",
+      "pages": [
+        "introduction",
+        "quickstart",
+        "architecture"
+      ]
+    },
+    {
+      "group": "Gateway",
+      "pages": [
+        "gateway/overview",
+        "gateway/configuration",
+        "gateway/plugins",
+        "gateway/sessions",
+        "gateway/tasks"
+      ]
+    },
+    {
+      "group": "Plugins",
+      "pages": [
+        "plugins/overview",
+        "plugins/websocket",
+        "plugins/telegram",
+        "plugins/tui",
+        "plugins/creating-plugins"
+      ]
+    },
+    {
+      "group": "Brain",
+      "pages": [
+        "brain/overview",
+        "brain/skills",
+        "brain/memory"
+      ]
+    },
+    {
+      "group": "Clients",
+      "pages": [
+        "clients/web",
+        "clients/tui"
+      ]
+    },
+    {
+      "group": "API Reference",
+      "pages": [
+        "api-reference/overview",
+        "api-reference/trpc",
+        "api-reference/websocket"
+      ]
+    },
+    {
+      "group": "Development",
+      "pages": [
+        "development/local-setup",
+        "development/contributing"
+      ]
+    }
+  ],
+  "footerSocials": {
+    "github": "https://github.com/schester44/oink"
+  }
+}

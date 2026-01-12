@@ -1,0 +1,181 @@
+---
+title: Configuration
+description: "Configure the Pinky gateway"
+---
+
+## Environment Variables
+
+The gateway is configured through environment variables. Create a `.env` file in the `apps/gateway` directory:
+
+```bash
+# apps/gateway/.env
+
+# Required: Anthropic API key for Claude
+ANTHROPIC_API_KEY="sk-ant-..."
+
+# Optional: Telegram bot token
+TELEGRAM_BOT_TOKEN="..."
+
+# Optional: ElevenLabs for TTS
+ELEVENLABS_API_KEY="..."
+
+# Optional: OpenAI for whisper/TTS
+OPENAI_API_KEY="..."
+```
+
+### Gateway Settings
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `GATEWAY_DATA_DIR` | `~/.pinky` | Base directory for all Pinky data |
+| `GATEWAY_DEFAULT_INSTANCE` | `default` | Default instance for new sessions |
+| `GATEWAY_WS_PORT` | `4445` | WebSocket server port |
+| `GATEWAY_TRPC_PORT` | `4446` | tRPC API port |
+| `GATEWAY_POLLER_INTERVAL_MS` | `60000` | Task scheduler polling interval |
+
+## Plugins Configuration
+
+Plugins are configured in `~/.pinky/plugins.json`:
+
+```json
+{
+  "transcription": {
+    "provider": "auto",
+    "localWhisper": {
+      "modelSize": "base.en",
+      "language": "en"
+    },
+    "openaiWhisper": {
+      "apiKey": "${OPENAI_API_KEY}"
+    }
+  },
+  "tts": {
+    "enabled": false,
+    "provider": "auto",
+    "voiceReplyOnly": true,
+    "elevenlabs": {
+      "apiKey": "${ELEVENLABS_API_KEY}",
+      "voiceId": "21m00Tcm4TlvDq8ikWAM"
+    },
+    "openai": {
+      "apiKey": "${OPENAI_API_KEY}",
+      "voice": "nova",
+      "model": "tts-1"
+    }
+  },
+  "plugins": {
+    "websocket": {
+      "enabled": true
+    },
+    "telegram": {
+      "enabled": false,
+      "botToken": "${TELEGRAM_BOT_TOKEN}",
+      "instanceId": "default",
+      "notificationChatId": ""
+    }
+  }
+}
+```
+
+<Note>
+Environment variables in the format `${VAR_NAME}` are automatically resolved at runtime.
+</Note>
+
+### Transcription Settings
+
+For voice message transcription:
+
+| Provider | Description |
+|----------|-------------|
+| `auto` | Try local whisper first, fall back to OpenAI |
+| `local-whisper` | Use local whisper.cpp (requires installation) |
+| `openai-whisper` | Use OpenAI's Whisper API |
+
+**Local Whisper Options:**
+
+```json
+{
+  "localWhisper": {
+    "modelSize": "base.en",  // tiny, base, small, medium, large
+    "language": "en",
+    "threads": 4
+  }
+}
+```
+
+### TTS Settings
+
+For text-to-speech responses:
+
+| Option | Description |
+|--------|-------------|
+| `enabled` | Enable/disable TTS |
+| `provider` | `elevenlabs`, `openai`, or `auto` |
+| `voiceReplyOnly` | Only use TTS when user sent voice |
+
+## User Settings
+
+User preferences are stored in `~/.pinky/settings.json`:
+
+```json
+{
+  "timezone": "America/New_York"
+}
+```
+
+These settings are used by the agent when generating responses (e.g., for time-aware answers).
+
+## Directory Structure
+
+```
+~/.pinky/
+├── plugins.json          # Plugin configuration
+├── settings.json         # User settings
+├── models.json           # Custom model definitions (optional)
+├── instances/
+│   ├── default/
+│   │   ├── sessions/     # Conversation history
+│   │   ├── brain/
+│   │   │   ├── skills/   # Custom skills (.md files)
+│   │   │   └── memory/   # Persistent memory
+│   │   └── tasks/
+│   │       ├── active/   # Active scheduled tasks
+│   │       └── archive/  # Completed/cancelled tasks
+│   └── work/             # Another instance example
+│       └── ...
+└── logs/                 # Application logs
+```
+
+## Instance Configuration
+
+Each instance is isolated with its own data. To create a new instance:
+
+1. The directory is created automatically on first use
+2. Brain files are initialized from templates
+3. Each instance has separate session history
+
+```typescript
+// Use a specific instance
+const request = {
+  instanceId: "work",
+  message: { ... }
+};
+```
+
+## Logging
+
+The gateway uses [Pino](https://getpino.io/) for structured logging:
+
+```bash
+# Pretty-print logs in development
+yarn dev | npx pino-pretty
+
+# JSON logs in production
+yarn start
+```
+
+Log levels can be set via:
+
+```bash
+LOG_LEVEL=debug yarn dev
+```

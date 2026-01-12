@@ -96,6 +96,12 @@ export function create(
     if (chunk.type === "text-start") {
       await startTypingIndicator(message.chatId);
     }
+
+    // Stop typing on terminal events (finish, error)
+    // This ensures typing stops even if the complete outgoing message isn't sent
+    if (chunk.type === "finish" || chunk.type === "error") {
+      stopTypingIndicator(message.chatId);
+    }
   };
 
   const handleOutgoing = async (message: OutgoingMessage): Promise<void> => {

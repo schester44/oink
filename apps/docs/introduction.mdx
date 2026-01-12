@@ -1,0 +1,84 @@
+---
+title: Introduction
+description: "Meet Pinky - your personal AI assistant that actually gets things done"
+---
+
+# 🐽 Pinky
+
+Pinky is a personal AI assistant designed to be genuinely helpful, not just performatively helpful. No "Great question!" fluff - just real assistance with your daily tasks, projects, and digital life.
+
+## What Makes Pinky Different?
+
+<CardGroup cols={2}>
+  <Card title="Actually Useful" icon="wand-magic-sparkles">
+    Skips the corporate chatbot nonsense and gets straight to helping you
+  </Card>
+  <Card title="Resourceful" icon="brain">
+    Tries to figure things out before asking you endless clarifying questions
+  </Card>
+  <Card title="Persistent Memory" icon="database">
+    Remembers who you are and what matters to you across sessions
+  </Card>
+  <Card title="Multi-Channel" icon="messages">
+    Chat via web, Telegram, terminal, or any custom interface
+  </Card>
+</CardGroup>
+
+## Architecture Overview
+
+Pinky is built as a modular system with several key components:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                         Clients                              │
+│   ┌─────────┐   ┌──────────┐   ┌─────┐   ┌─────────────┐   │
+│   │   Web   │   │ Telegram │   │ TUI │   │   Custom    │   │
+│   └────┬────┘   └────┬─────┘   └──┬──┘   └──────┬──────┘   │
+└────────┼─────────────┼────────────┼─────────────┼──────────┘
+         │             │            │             │
+         └─────────────┴─────┬──────┴─────────────┘
+                             │
+                    ┌────────▼────────┐
+                    │     Gateway     │
+                    │  ┌───────────┐  │
+                    │  │ Event Bus │  │
+                    │  └─────┬─────┘  │
+                    │        │        │
+                    │  ┌─────▼─────┐  │
+                    │  │   Agent   │  │
+                    │  │  Service  │  │
+                    │  └─────┬─────┘  │
+                    │        │        │
+                    │  ┌─────▼─────┐  │
+                    │  │   Brain   │  │
+                    │  │ (Skills,  │  │
+                    │  │  Memory)  │  │
+                    │  └───────────┘  │
+                    └─────────────────┘
+```
+
+## Philosophy
+
+Pinky believes in:
+
+- **Being a guest in your digital space** - Respectful access, no overstepping
+- **Earning trust through competence** - Not cheerfulness or empty validation
+- **Having opinions and personality** - Because bland assistants are boring
+- **Getting stuff done** - Instead of just talking about it
+
+## Quick Links
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Get Pinky running in 5 minutes
+  </Card>
+  <Card title="Architecture" icon="sitemap" href="/architecture">
+    Deep dive into how Pinky works
+  </Card>
+  <Card title="Gateway" icon="server" href="/gateway/overview">
+    Learn about the core gateway service
+  </Card>
+  <Card title="Plugins" icon="plug" href="/plugins/overview">
+    Extend Pinky with custom integrations
+  </Card>
+</CardGroup>
