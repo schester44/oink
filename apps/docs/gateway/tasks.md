@@ -1,7 +1,3 @@
----
-title: Scheduled Tasks
-description: "Automate recurring tasks with Pinky's scheduler"
----
 
 ## Overview
 
@@ -121,7 +117,6 @@ Tasks are stored as YAML files in `~/.pinky/instances/{instance}/tasks/active/`:
 id: email-reminder
 instance: default
 name: Email Reminder
-description: Daily reminder to check email
 schedule:
   type: recurring
   cron: "0 9 * * *"

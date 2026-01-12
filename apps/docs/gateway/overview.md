@@ -1,7 +1,3 @@
----
-title: Gateway Overview
-description: "The central hub of the Pinky system"
----
 
 ## What is the Gateway?
 
@@ -132,17 +128,17 @@ The agent service uses `@mariozechner/pi-coding-agent` to provide:
 
 ## Related Pages
 
-<CardGroup cols={2}>
-  <Card title="Configuration" icon="gear" href="/gateway/configuration">
+
+  - [Configuration](/gateway/configuration) - 
     Configure the gateway
-  </Card>
-  <Card title="Plugins" icon="plug" href="/gateway/plugins">
+  
+  - [Plugins](/gateway/plugins) - 
     Plugin system details
-  </Card>
-  <Card title="Sessions" icon="comments" href="/gateway/sessions">
+  
+  - [Sessions](/gateway/sessions) - 
     Session management
-  </Card>
-  <Card title="Tasks" icon="clock" href="/gateway/tasks">
+  
+  - [Tasks](/gateway/tasks) - 
     Scheduled tasks
-  </Card>
-</CardGroup>
+  
+

@@ -1,7 +1,3 @@
----
-title: Configuration
-description: "Configure the Pinky gateway"
----
 
 ## Environment Variables
 
@@ -77,9 +73,9 @@ Plugins are configured in `~/.pinky/plugins.json`:
 }
 ```
 
-<Note>
+> **Note:** 
 Environment variables in the format `${VAR_NAME}` are automatically resolved at runtime.
-</Note>
+
 
 ### Transcription Settings
 

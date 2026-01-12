@@ -1,7 +1,3 @@
----
-title: Plugin System
-description: "How the gateway plugin system works"
----
 
 ## Overview
 
@@ -166,17 +162,17 @@ async loadPlugin(id: string, settings: PluginConfig): Promise<void> {
 
 ## Available Plugins
 
-<CardGroup cols={2}>
-  <Card title="WebSocket" icon="plug" href="/plugins/websocket">
+
+  - [WebSocket](/plugins/websocket) - 
     Real-time web client connections via Socket.IO
-  </Card>
-  <Card title="Telegram" icon="paper-plane" href="/plugins/telegram">
+  
+  - [Telegram](/plugins/telegram) - 
     Telegram bot integration with voice support
-  </Card>
-  <Card title="TUI" icon="terminal" href="/plugins/tui">
+  
+  - [TUI](/plugins/tui) - 
     Terminal user interface client
-  </Card>
-  <Card title="Create Your Own" icon="code" href="/plugins/creating-plugins">
+  
+  - [Create Your Own](/plugins/creating-plugins) - 
     Build custom plugins
-  </Card>
-</CardGroup>
+  
+

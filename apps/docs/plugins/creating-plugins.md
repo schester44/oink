@@ -1,7 +1,3 @@
----
-title: Creating Plugins
-description: "Build custom plugins to connect Pinky to any service"
----
 
 ## Overview
 
@@ -355,24 +351,34 @@ export function create(config: DiscordPluginConfig): MessagePlugin {
 
 ## Best Practices
 
-<AccordionGroup>
-  <Accordion title="Always check pluginId">
+
+  
+**Always check pluginId**
+
     Filter events by `pluginId` to avoid handling other plugins' messages.
-  </Accordion>
   
-  <Accordion title="Clean up on stop">
+  
+  
+**Clean up on stop**
+
     Unsubscribe from all events and close connections in `stop()`.
-  </Accordion>
   
-  <Accordion title="Use structured logging">
+  
+  
+**Use structured logging**
+
     Include `pluginId` in all log entries for easy debugging.
-  </Accordion>
   
-  <Accordion title="Handle errors gracefully">
+  
+  
+**Handle errors gracefully**
+
     Don't let errors crash the gateway. Log and continue.
-  </Accordion>
   
-  <Accordion title="Support streaming when possible">
+  
+  
+**Support streaming when possible**
+
     Listen to `outgoing-chunk` for real-time response delivery.
-  </Accordion>
-</AccordionGroup>
+  
+

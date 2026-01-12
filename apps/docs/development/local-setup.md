@@ -1,7 +1,3 @@
----
-title: Local Setup
-description: "Set up Pinky for local development"
----
 
 ## Prerequisites
 

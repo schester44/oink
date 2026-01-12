@@ -1,7 +1,3 @@
----
-title: TUI Client
-description: "Terminal-based chat interface"
----
 
 ## Overview
 

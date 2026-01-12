@@ -1,7 +1,3 @@
----
-title: Contributing
-description: "How to contribute to Pinky"
----
 
 ## Getting Started
 

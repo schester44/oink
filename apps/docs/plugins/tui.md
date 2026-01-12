@@ -1,7 +1,3 @@
----
-title: TUI Client
-description: "Terminal user interface for chatting with Pinky"
----
 
 ## Overview
 

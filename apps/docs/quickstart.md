@@ -1,7 +1,3 @@
----
-title: Quickstart
-description: "Get Pinky up and running in 5 minutes"
----
 
 ## Prerequisites
 
@@ -11,21 +7,24 @@ description: "Get Pinky up and running in 5 minutes"
 
 ## Installation
 
-<Steps>
-  <Step title="Clone the repository">
+
+  ### Clone the repository
+
     ```bash
     git clone https://github.com/schester44/oink.git
     cd pinky
     ```
-  </Step>
   
-  <Step title="Install dependencies">
+  
+  ### Install dependencies
+
     ```bash
     yarn install
     ```
-  </Step>
   
-  <Step title="Configure environment">
+  
+  ### Configure environment
+
     Create the gateway environment file:
     
     ```bash
@@ -43,9 +42,10 @@ description: "Get Pinky up and running in 5 minutes"
     # Optional: For voice features
     ELEVENLABS_API_KEY="..."
     ```
-  </Step>
   
-  <Step title="Configure plugins">
+  
+  ### Configure plugins
+
     Create the plugins configuration:
     
     ```bash
@@ -69,9 +69,10 @@ description: "Get Pinky up and running in 5 minutes"
       }
     }
     ```
-  </Step>
   
-  <Step title="Start the gateway">
+  
+  ### Start the gateway
+
     ```bash
     cd apps/gateway
     yarn dev
@@ -84,9 +85,10 @@ description: "Get Pinky up and running in 5 minutes"
     INFO: tRPC server listening { port: 4446 }
     INFO: Pinky Gateway started successfully
     ```
-  </Step>
   
-  <Step title="Start the web client (optional)">
+  
+  ### Start the web client (optional)
+
     In a new terminal:
     
     ```bash
@@ -95,8 +97,8 @@ description: "Get Pinky up and running in 5 minutes"
     ```
     
     Open http://localhost:4444 in your browser.
-  </Step>
-</Steps>
+  
+
 
 ## Quick Test with TUI
 

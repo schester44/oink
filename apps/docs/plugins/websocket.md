@@ -1,7 +1,3 @@
----
-title: WebSocket Plugin
-description: "Real-time connections for web clients"
----
 
 ## Overview
 

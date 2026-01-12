@@ -1,7 +1,3 @@
----
-title: Architecture
-description: "Understanding Pinky's modular design"
----
 
 ## Overview
 
@@ -75,9 +71,9 @@ The gateway is the heart of Pinky. It:
 - Handles authentication and instance isolation
 - Provides tRPC API for management operations
 
-<Card title="Gateway Documentation" icon="server" href="/gateway/overview">
+- [Gateway Documentation](/gateway/overview) - 
   Learn more about the gateway
-</Card>
+
 
 ### Event Bus
 
@@ -107,9 +103,9 @@ Plugins are adapters that connect external services to Pinky:
 - **Telegram**: Telegram bot integration
 - **TUI**: Terminal user interface
 
-<Card title="Plugin System" icon="plug" href="/plugins/overview">
+- [Plugin System](/plugins/overview) - 
   Learn how to create custom plugins
-</Card>
+
 
 ### Brain
 
@@ -119,9 +115,9 @@ The brain stores persistent knowledge and skills:
 - **Memory**: Facts and preferences Pinky remembers
 - **Templates**: Reusable prompt templates
 
-<Card title="Brain System" icon="brain" href="/brain/overview">
+- [Brain System](/brain/overview) - 
   Learn about the brain
-</Card>
+
 
 ## Data Flow
 

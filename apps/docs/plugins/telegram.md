@@ -1,7 +1,3 @@
----
-title: Telegram Plugin
-description: "Telegram bot integration with voice and image support"
----
 
 ## Overview
 

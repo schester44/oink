@@ -1,7 +1,3 @@
----
-title: WebSocket API
-description: "Real-time chat and streaming API"
----
 
 ## Overview
 

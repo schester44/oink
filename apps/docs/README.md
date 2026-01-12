@@ -1,28 +1,13 @@
----
-title: Introduction
-description: "Meet Pinky - your personal AI assistant that actually gets things done"
----
-
 # 🐽 Pinky
 
 Pinky is a personal AI assistant designed to be genuinely helpful, not just performatively helpful. No "Great question!" fluff - just real assistance with your daily tasks, projects, and digital life.
 
 ## What Makes Pinky Different?
 
-<CardGroup cols={2}>
-  <Card title="Actually Useful" icon="wand-magic-sparkles">
-    Skips the corporate chatbot nonsense and gets straight to helping you
-  </Card>
-  <Card title="Resourceful" icon="brain">
-    Tries to figure things out before asking you endless clarifying questions
-  </Card>
-  <Card title="Persistent Memory" icon="database">
-    Remembers who you are and what matters to you across sessions
-  </Card>
-  <Card title="Multi-Channel" icon="messages">
-    Chat via web, Telegram, terminal, or any custom interface
-  </Card>
-</CardGroup>
+- **Actually Useful** - Skips the corporate chatbot nonsense and gets straight to helping you
+- **Resourceful** - Tries to figure things out before asking you endless clarifying questions
+- **Persistent Memory** - Remembers who you are and what matters to you across sessions
+- **Multi-Channel** - Chat via web, Telegram, terminal, or any custom interface
 
 ## Architecture Overview
 
@@ -68,17 +53,7 @@ Pinky believes in:
 
 ## Quick Links
 
-<CardGroup cols={2}>
-  <Card title="Quickstart" icon="rocket" href="/quickstart">
-    Get Pinky running in 5 minutes
-  </Card>
-  <Card title="Architecture" icon="sitemap" href="/architecture">
-    Deep dive into how Pinky works
-  </Card>
-  <Card title="Gateway" icon="server" href="/gateway/overview">
-    Learn about the core gateway service
-  </Card>
-  <Card title="Plugins" icon="plug" href="/plugins/overview">
-    Extend Pinky with custom integrations
-  </Card>
-</CardGroup>
+- [Quickstart](quickstart.md) - Get Pinky running in 5 minutes
+- [Architecture](architecture.md) - Deep dive into how Pinky works
+- [Gateway](gateway/overview.md) - Learn about the core gateway service
+- [Plugins](plugins/overview.md) - Extend Pinky with custom integrations

@@ -1,7 +1,3 @@
----
-title: tRPC API
-description: "Type-safe API for management operations"
----
 
 ## Overview
 
@@ -44,7 +40,6 @@ const health = await trpc.health.check.query();
 }
 ```
 
----
 
 ### Instances
 
@@ -99,7 +94,6 @@ await trpc.instances.delete.mutate({
 { success: true }
 ```
 
----
 
 ### Sessions
 
@@ -172,7 +166,6 @@ await trpc.sessions.delete.mutate({
 { success: true }
 ```
 
----
 
 ### Metrics
 
@@ -215,7 +208,6 @@ await trpc.metrics.reset.mutate();
 { success: true }
 ```
 
----
 
 ### Settings
 
@@ -247,7 +239,6 @@ const settings = await trpc.settings.update.mutate({
 }
 ```
 
----
 
 ### Plugins
 

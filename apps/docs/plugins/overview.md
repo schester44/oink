@@ -1,7 +1,3 @@
----
-title: Plugins Overview
-description: "Extend Pinky with custom communication channels"
----
 
 ## What are Plugins?
 
@@ -9,17 +5,17 @@ Plugins are adapters that connect external services to Pinky. They translate bet
 
 ## Built-in Plugins
 
-<CardGroup cols={3}>
-  <Card title="WebSocket" icon="plug" href="/plugins/websocket">
+
+  - [WebSocket](/plugins/websocket) - 
     Real-time connections for web clients
-  </Card>
-  <Card title="Telegram" icon="paper-plane" href="/plugins/telegram">
+  
+  - [Telegram](/plugins/telegram) - 
     Telegram bot with voice support
-  </Card>
-  <Card title="TUI" icon="terminal" href="/plugins/tui">
+  
+  - [TUI](/plugins/tui) - 
     Terminal interface client
-  </Card>
-</CardGroup>
+  
+
 
 ## Plugin Architecture
 
@@ -123,14 +119,14 @@ Plugins are configured in `~/.pinky/plugins.json`:
 }
 ```
 
-<Note>
+> **Note:** 
 Environment variables in `${VAR}` format are automatically resolved at startup.
-</Note>
+
 
 ## Creating Custom Plugins
 
 Ready to build your own? Check out the guide:
 
-<Card title="Creating Plugins" icon="code" href="/plugins/creating-plugins">
+- [Creating Plugins](/plugins/creating-plugins) - 
   Step-by-step guide to building custom plugins
-</Card>
+

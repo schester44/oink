@@ -1,7 +1,3 @@
----
-title: Web Client
-description: "The React-based web interface for Pinky"
----
 
 ## Overview
 

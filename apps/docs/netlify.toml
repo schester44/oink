@@ -1,3 +1,7 @@
 [build]
-  command = "npx mintlify build"
-  publish = ".mintlify/output"
+  publish = "."
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

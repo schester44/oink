@@ -1,20 +1,16 @@
----
-title: API Overview
-description: "Pinky's API endpoints and protocols"
----
 
 ## APIs
 
 Pinky exposes two primary APIs:
 
-<CardGroup cols={2}>
-  <Card title="tRPC API" icon="code" href="/api-reference/trpc">
+
+  - [tRPC API](/api-reference/trpc) - 
     Type-safe API for management operations
-  </Card>
-  <Card title="WebSocket API" icon="plug" href="/api-reference/websocket">
+  
+  - [WebSocket API](/api-reference/websocket) - 
     Real-time chat and streaming
-  </Card>
-</CardGroup>
+  
+
 
 ## Ports
 

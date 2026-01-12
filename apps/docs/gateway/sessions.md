@@ -1,7 +1,3 @@
----
-title: Sessions
-description: "How Pinky manages conversation sessions"
----
 
 ## Overview
 
@@ -163,19 +159,25 @@ Pinky uses `@mariozechner/pi-coding-agent` for session management, which handles
 
 ## Best Practices
 
-<AccordionGroup>
-  <Accordion title="Session Isolation">
+
+  
+**Session Isolation**
+
     Use separate instances for different contexts (work vs personal).
     Each instance has completely isolated sessions.
-  </Accordion>
   
-  <Accordion title="Session Cleanup">
+  
+  
+**Session Cleanup**
+
     Old sessions are automatically cleaned from memory but persist on disk.
     Manually delete old sessions via the API or web UI to save disk space.
-  </Accordion>
   
-  <Accordion title="Long Conversations">
+  
+  
+**Long Conversations**
+
     For very long conversations, start a new session and summarize the context.
     This keeps responses fast and reduces token usage.
-  </Accordion>
-</AccordionGroup>
+  
+
