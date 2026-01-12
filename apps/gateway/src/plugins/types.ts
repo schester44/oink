@@ -24,6 +24,8 @@ export interface NormalizedMessage {
   content: MessageContent[];
   timestamp: Date;
   replyTo?: string;
+  /** True if the original message included voice/audio */
+  hasVoice?: boolean;
 }
 
 // === Outgoing Message Types ===
@@ -42,6 +44,8 @@ export interface OutgoingMessage {
   isComplete: boolean;
   // Raw UIMessageChunk from AI SDK for WebSocket passthrough
   rawChunk?: unknown;
+  /** True if we should respond with voice (user sent voice or TTS always enabled) */
+  respondWithVoice?: boolean;
 }
 
 // === Notification Types ===
@@ -95,6 +99,25 @@ export interface PluginsConfig {
     openaiWhisper?: {
       apiKey?: string;
       model?: string;
+    };
+  };
+  tts?: {
+    enabled: boolean;
+    provider: "elevenlabs" | "openai" | "auto";
+    /** Only reply with voice if user sent voice message */
+    voiceReplyOnly?: boolean;
+    elevenlabs?: {
+      apiKey?: string;
+      voiceId?: string;
+      modelId?: string;
+      stability?: number;
+      similarityBoost?: number;
+    };
+    openai?: {
+      apiKey?: string;
+      voice?: "alloy" | "echo" | "fable" | "onyx" | "nova" | "shimmer";
+      model?: "tts-1" | "tts-1-hd";
+      speed?: number;
     };
   };
 }

@@ -10,6 +10,20 @@
       "apiKey": "${OPENAI_API_KEY}"
     }
   },
+  "tts": {
+    "enabled": false,
+    "provider": "auto",
+    "voiceReplyOnly": true,
+    "elevenlabs": {
+      "apiKey": "${ELEVENLABS_API_KEY}",
+      "voiceId": "21m00Tcm4TlvDq8ikWAM"
+    },
+    "openai": {
+      "apiKey": "${OPENAI_API_KEY}",
+      "voice": "nova",
+      "model": "tts-1"
+    }
+  },
   "plugins": {
     "websocket": {
       "enabled": true

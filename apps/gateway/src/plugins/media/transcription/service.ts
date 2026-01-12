@@ -43,7 +43,9 @@ class TranscriptionService {
       this.config.provider === "openai-whisper" ||
       this.config.provider === "auto"
     ) {
-      const openaiProvider = new OpenAIWhisperProvider(this.config.openaiWhisper);
+      const openaiProvider = new OpenAIWhisperProvider(
+        this.config.openaiWhisper,
+      );
       await openaiProvider.initialize();
       this.providers.set(openaiProvider.name, openaiProvider);
     }
@@ -76,7 +78,7 @@ class TranscriptionService {
     if (this.activeProvider) {
       logger.info(
         { provider: this.activeProvider.name },
-        "Transcription provider selected"
+        "Transcription provider selected",
       );
     } else {
       logger.warn("No transcription provider available");
@@ -93,6 +95,7 @@ class TranscriptionService {
 
     if (!this.activeProvider || !this.activeProvider.isAvailable) {
       logger.warn("No transcription provider available");
+
       return { text: "[Audio message - transcription unavailable]" };
     }
 
@@ -118,12 +121,15 @@ class TranscriptionService {
    */
   setActiveProvider(name: string): boolean {
     const provider = this.providers.get(name);
+
     if (provider && provider.isAvailable) {
       this.activeProvider = provider;
       logger.info({ provider: name }, "Transcription provider changed");
+
       return true;
     }
     logger.warn({ provider: name }, "Provider not available");
+
     return false;
   }
 
@@ -149,6 +155,8 @@ class TranscriptionService {
 export const transcriptionService = new TranscriptionService();
 
 // Convenience function for backward compatibility
-export async function transcribeAudio(audioPath: string): Promise<TranscriptionResult> {
+export async function transcribeAudio(
+  audioPath: string,
+): Promise<TranscriptionResult> {
   return transcriptionService.transcribe(audioPath);
 }

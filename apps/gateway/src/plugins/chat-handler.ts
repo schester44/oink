@@ -4,6 +4,7 @@ import { readFile } from "fs/promises";
 import { eventBus } from "./event-bus.js";
 import { streamChat, type StreamChunk, type ChatRequest } from "../agent/agent-service.js";
 import { logger } from "../lib/logger.js";
+import { ttsService } from "./media/index.js";
 import type { NormalizedMessage, MessageContent } from "./types.js";
 
 const MAX_RETRIES = 3;
@@ -67,9 +68,14 @@ async function handleIncoming(message: NormalizedMessage): Promise<void> {
       pluginId: message.pluginId,
       chatId: message.chatId,
       sessionId: message.sessionId,
+      hasVoice: message.hasVoice,
     },
     "Processing incoming message",
   );
+
+  // Determine if we should respond with voice
+  const shouldRespondWithVoice = ttsService.isEnabled() && 
+    (!ttsService.isVoiceReplyOnly() || message.hasVoice);
 
   // Build multimodal parts (text + images) for vision support
   const parts = await buildChatMessageParts(message.content);
@@ -118,6 +124,7 @@ async function handleIncoming(message: NormalizedMessage): Promise<void> {
           isStreaming: true,
           isComplete: false,
           rawChunk: chunk,
+          respondWithVoice: shouldRespondWithVoice,
         });
 
         // On finish, emit complete message
@@ -130,6 +137,7 @@ async function handleIncoming(message: NormalizedMessage): Promise<void> {
             isStreaming: false,
             isComplete: true,
             rawChunk: chunk,
+            respondWithVoice: shouldRespondWithVoice,
           });
         }
       }

@@ -73,6 +73,10 @@ async function processMessage(
       return;
     }
 
+    // Check if message contains voice/audio
+    const hasVoice = ("voice" in message && !!message.voice) || 
+                     ("audio" in message && !!message.audio);
+
     const normalized: NormalizedMessage = {
       id: uuid(),
       pluginId: PLUGIN_ID,
@@ -83,6 +87,7 @@ async function processMessage(
       content,
       timestamp: new Date(message.date * 1000),
       replyTo: message.reply_to_message ? String(message.reply_to_message.message_id) : undefined,
+      hasVoice,
     };
 
     logger.debug(

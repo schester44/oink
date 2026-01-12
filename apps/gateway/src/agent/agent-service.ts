@@ -81,11 +81,25 @@ interface SessionInfo {
   lastUsed: number;
 }
 
-// Cache of active sessions
+// Cache of active sessions by external session ID (e.g., "telegram:12345")
 const activeSessions = new Map<string, SessionInfo>();
 
 // Session cleanup interval (30 minutes)
 const SESSION_TIMEOUT_MS = 30 * 60 * 1000;
+
+/**
+ * Get session directory for an external session ID.
+ * Each external session (e.g., telegram chat) gets its own directory.
+ */
+function getExternalSessionDir(
+  instanceId: string,
+  externalSessionId: string,
+): string {
+  // Sanitize the external ID for use as directory name
+  const safeId = externalSessionId.replace(/[^a-zA-Z0-9_-]/g, "_");
+
+  return join(getSessionsDir(instanceId), safeId);
+}
 
 /**
  * Generate a unique message ID
@@ -108,21 +122,58 @@ function ensureSessionsDir(instanceId: string): string {
 }
 
 /**
- * Get or create an agent session for a given session ID and instance
+ * Check if a session ID represents an external channel (telegram, etc.)
+ * External channels get their own subdirectory for session isolation.
+ */
+function isExternalChannelSession(sessionId: string | undefined): boolean {
+  if (!sessionId) return false;
+  // External channels use format like "telegram:12345"
+  // Web/websocket sessions are UUIDs or start with "web:"
+  return sessionId.includes(":") && 
+    !sessionId.startsWith("web:") && 
+    !sessionId.startsWith("websocket:");
+}
+
+/**
+ * Find a session file by ID in a directory
+ */
+function findSessionFile(sessionsDir: string, sessionId: string): string | null {
+  if (!existsSync(sessionsDir)) return null;
+  
+  const files = readdirSync(sessionsDir).filter((f) => f.endsWith(".jsonl"));
+  const match = files.find((f) => f.includes(sessionId));
+  
+  return match ? join(sessionsDir, match) : null;
+}
+
+/**
+ * Get or create an agent session.
+ *
+ * Session handling:
+ * - External channels (telegram:*, etc.): Own subdirectory, continueRecent() 
+ * - Web/websocket with existing sessionId: Open that specific session
+ * - Web/websocket without sessionId: Create new session
+ * 
+ * The backend owns session ID creation - returns session.sessionId as source of truth.
  */
 async function getOrCreateSession(
-  sessionId: string | undefined,
+  requestedSessionId: string | undefined,
   instanceId: string,
   sourceChannel?: string,
   chatId?: string,
 ): Promise<AgentSession> {
-  // Check cache first using the provided sessionId
-  if (sessionId) {
-    const cached = activeSessions.get(sessionId);
-    if (cached && cached.instanceId === instanceId) {
-      cached.lastUsed = Date.now();
-      return cached.session;
-    }
+  const isExternalChannel = isExternalChannelSession(requestedSessionId);
+  
+  // For external channels, use the channel ID as cache key
+  // For web sessions, use the requested session ID (if opening existing) or we'll cache by actual ID later
+  const cacheKey = requestedSessionId || "_new_";
+  
+  // Check cache first
+  const cached = activeSessions.get(cacheKey);
+  if (cached && cached.instanceId === instanceId) {
+    cached.lastUsed = Date.now();
+    logger.debug({ requestedSessionId, instanceId }, "Using cached session");
+    return cached.session;
   }
 
   // Initialize brain files
@@ -133,7 +184,44 @@ async function getOrCreateSession(
   });
 
   const workspaceDir = getWorkspaceDir(instanceId);
-  const sessionsDir = ensureSessionsDir(instanceId);
+  const mainSessionsDir = ensureSessionsDir(instanceId);
+
+  // Determine sessions directory and session manager strategy
+  let sessionsDir: string;
+  let sessionManager: ReturnType<typeof SessionManager.create | typeof SessionManager.open>;
+
+  if (isExternalChannel) {
+    // External channels: own subdirectory, always continue recent
+    sessionsDir = getExternalSessionDir(instanceId, requestedSessionId!);
+    if (!existsSync(sessionsDir)) {
+      mkdirSync(sessionsDir, { recursive: true });
+    }
+    sessionManager = SessionManager.continueRecent(workspaceDir, sessionsDir);
+  } else if (requestedSessionId) {
+    // Web with specific session ID: try to open existing
+    sessionsDir = mainSessionsDir;
+    const sessionFile = findSessionFile(sessionsDir, requestedSessionId);
+    
+    if (sessionFile) {
+      sessionManager = SessionManager.open(sessionFile, sessionsDir);
+    } else {
+      // Session doesn't exist, create new
+      sessionManager = SessionManager.create(workspaceDir, sessionsDir);
+    }
+  } else {
+    // No session ID: create new
+    sessionsDir = mainSessionsDir;
+    sessionManager = SessionManager.create(workspaceDir, sessionsDir);
+  }
+
+  logger.debug(
+    {
+      requestedSessionId,
+      actualSessionId: sessionManager.getSessionId(),
+      sessionsDir,
+    },
+    "Session manager ready",
+  );
 
   // Set up auth storage using ~/.pinky directory
   const authStorage = discoverAuthStorage(config.dataDir);
@@ -160,7 +248,6 @@ async function getOrCreateSession(
     userTimezone: settings.timezone,
   });
 
-  // Load settings from ~/.pinky/agent/ directory
   // Load settings from ~/.pinky/ directory
   const settingsManager = SettingsManager.create(workspaceDir, config.dataDir);
 
@@ -170,30 +257,6 @@ async function getOrCreateSession(
     sourceChannel,
     chatId,
   });
-
-  // Create session manager
-  let sessionManager: ReturnType<
-    typeof SessionManager.create | typeof SessionManager.open
-  >;
-
-  if (sessionId) {
-    // Try to find existing session by ID (UUID is in filename)
-    const sessionFiles = existsSync(sessionsDir)
-      ? readdirSync(sessionsDir).filter((f) => f.endsWith(".jsonl"))
-      : [];
-    const sessionFile = sessionFiles.find((f) => f.includes(sessionId));
-
-    if (sessionFile) {
-      const sessionPath = join(sessionsDir, sessionFile);
-      sessionManager = SessionManager.open(sessionPath);
-    } else {
-      // Create new session (custom directory)
-      sessionManager = SessionManager.create(workspaceDir, sessionsDir);
-    }
-  } else {
-    // Create new session
-    sessionManager = SessionManager.create(workspaceDir, sessionsDir);
-  }
 
   // Discover skills from brain/skills and system-skills directories
   const brainSkillsDir = join(workspaceDir, "skills");
@@ -230,12 +293,26 @@ async function getOrCreateSession(
     settingsManager,
   });
 
-  // Cache the session
+  // Cache by the actual session ID (backend is source of truth)
+  // For external channels, also cache by the channel ID for quick lookup
   activeSessions.set(session.sessionId, {
     session,
     instanceId,
     lastUsed: Date.now(),
   });
+  
+  if (isExternalChannel && requestedSessionId) {
+    activeSessions.set(requestedSessionId, {
+      session,
+      instanceId,
+      lastUsed: Date.now(),
+    });
+  }
+
+  logger.info(
+    { requestedSessionId, sessionId: session.sessionId, instanceId },
+    "Session ready",
+  );
 
   return session;
 }
@@ -303,6 +380,7 @@ export async function* streamChat(
           // Emit start chunk at the very beginning with the actual session ID
           if (!streamStarted) {
             streamStarted = true;
+
             emitChunk({
               type: "start",
               messageId,

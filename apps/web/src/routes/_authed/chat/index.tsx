@@ -100,7 +100,8 @@ function ChatPage() {
     health: initialHealth,
     instanceId: loaderInstanceId,
   } = route.useLoaderData();
-  const sessionId = urlSessionId || getStoredSessionId() || "main";
+  // sessionId is undefined for new chats - backend will create and send back the ID
+  const sessionId = urlSessionId || getStoredSessionId();
   const instanceId = urlInstance || loaderInstanceId;
 
   // Store session ID in localStorage whenever it changes
@@ -140,6 +141,10 @@ function ChatPage() {
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [showStreamingDelay, setShowStreamingDelay] = useState(false);
   const [metrics, setMetrics] = useState(initialMetrics);
+  
+  // Stable chat ID for useChat - either the URL sessionId or a generated one for new chats
+  // This prevents useChat from resetting when we update the URL with the backend's sessionId
+  const [chatId] = useState(() => sessionId || crypto.randomUUID());
 
   const toggleToolCalls = () => {
     const next = !showToolCalls;
@@ -165,7 +170,7 @@ function ChatPage() {
   }, [transport, instanceId, sessionId]);
 
   const { messages, sendMessage, status, setMessages } = useChat({
-    id: sessionId,
+    id: chatId,
     transport,
     onFinish: () => {
       getMetricsServerFn().then(setMetrics);
@@ -193,15 +198,18 @@ function ChatPage() {
 
     // Handler to update session ID when backend creates a new session
     const handleSessionId = (newSessionId: string) => {
+      console.log("[Chat] handleSessionId called:", { newSessionId, currentSessionId: sessionId });
       // Only update if this is a new session (sessionId doesn't match)
       if (newSessionId !== sessionId) {
         console.log("[Chat] Updating session ID:", sessionId, "->", newSessionId);
-        // Navigate to the new session ID without reloading
-        navigate({
-          to: "/chat",
-          search: { instance: instanceId, sessionId: newSessionId },
-          replace: true, // Replace history entry so back button works correctly
-        });
+        // Store it immediately
+        storeSessionId(newSessionId);
+        
+        // Update URL without causing a re-render that clears messages
+        // Use history.replaceState directly to avoid React re-render
+        const url = new URL(window.location.href);
+        url.searchParams.set("sessionId", newSessionId);
+        window.history.replaceState({}, "", url.toString());
       }
     };
 
@@ -244,6 +252,9 @@ function ChatPage() {
         })
         .catch(console.error)
         .finally(() => setIsInitialLoad(false));
+    } else {
+      // No session ID means new chat - just mark as loaded
+      setIsInitialLoad(false);
     }
   }, [sessionId, instanceId, setMessages]);
 
@@ -283,9 +294,17 @@ function ChatPage() {
     setMessages([]);
     setInput("");
 
+    // Clear stored sessionId so we don't fall back to it
+    try {
+      localStorage.removeItem(SESSION_STORAGE_KEY);
+    } catch {
+      // Ignore storage errors
+    }
+
+    // Clear sessionId - backend will create a new one and send it back
     navigate({
       to: "/chat",
-      search: { instance: instanceId, sessionId: crypto.randomUUID() },
+      search: { instance: instanceId },
     });
   };
 

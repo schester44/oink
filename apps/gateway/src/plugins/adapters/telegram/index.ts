@@ -1,7 +1,9 @@
 // apps/gateway/src/plugins/adapters/telegram/index.ts
 
-import { Bot } from "grammy";
+import { createReadStream } from "fs";
+import { Bot, InputFile } from "grammy";
 import { eventBus } from "../../event-bus.js";
+import { ttsService } from "../../media/index.js";
 import { logger } from "../../../lib/logger.js";
 import type {
   MessagePlugin,
@@ -107,8 +109,31 @@ export function create(
     const textContent = message.content.find((c) => c.type === "text");
     if (!textContent || textContent.type !== "text") return;
 
+    const text = textContent.text;
+
+    // Send voice message if TTS is enabled and appropriate
+    if (message.respondWithVoice && ttsService.isEnabled()) {
+      try {
+        logger.debug({ chatId: message.chatId, textLength: text.length }, "Generating TTS audio");
+        const ttsResult = await ttsService.synthesize(text, { format: "mp3" });
+        
+        // Send as voice message
+        await bot.api.sendVoice(
+          message.chatId,
+          new InputFile(createReadStream(ttsResult.audioPath)),
+        );
+        
+        logger.debug({ chatId: message.chatId, audioPath: ttsResult.audioPath }, "Voice message sent");
+        return; // Don't send text if voice was sent
+      } catch (error) {
+        logger.error({ error, chatId: message.chatId }, "TTS failed, falling back to text");
+        // Fall through to send text instead
+      }
+    }
+
+    // Send text message
     try {
-      const formatted = formatForTelegram(textContent.text);
+      const formatted = formatForTelegram(text);
       const chunks = splitMessage(formatted);
 
       for (const chunk of chunks) {
@@ -124,11 +149,7 @@ export function create(
 
       // Fallback: try sending without formatting
       try {
-        const textContent = message.content.find((c) => c.type === "text");
-
-        if (textContent && textContent.type === "text") {
-          await bot.api.sendMessage(message.chatId, textContent.text);
-        }
+        await bot.api.sendMessage(message.chatId, text);
       } catch (fallbackError) {
         logger.error(
           { error: fallbackError, chatId: message.chatId },

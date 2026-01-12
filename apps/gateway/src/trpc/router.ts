@@ -9,6 +9,8 @@ import {
   deleteSessionInputSchema,
   updateSettingsInputSchema,
   updatePluginInputSchema,
+  updateTranscriptionInputSchema,
+  updateTTSInputSchema,
   type Instance,
   type SessionInfo,
   type MetricsData,
@@ -169,26 +171,68 @@ export const appRouter = router({
         const workspaceDir = getWorkspaceDir(instanceId);
         const sessionsDir = getSessionsDir(instanceId);
 
-        // Use pi-coding-agent's SessionManager.list()
-        return SessionManager.list(workspaceDir, sessionsDir);
+        // Get sessions from main directory
+        const mainSessions = SessionManager.list(workspaceDir, sessionsDir);
+        
+        // Also get sessions from subdirectories (external sessions like telegram)
+        const allSessions = [...mainSessions];
+        
+        if (existsSync(sessionsDir)) {
+          const entries = readdirSync(sessionsDir, { withFileTypes: true });
+          for (const entry of entries) {
+            if (entry.isDirectory()) {
+              const subDir = join(sessionsDir, entry.name);
+              try {
+                const subSessions = SessionManager.list(workspaceDir, subDir);
+                allSessions.push(...subSessions);
+              } catch {
+                // Ignore errors from invalid session directories
+              }
+            }
+          }
+        }
+        
+        // Sort by modified date, most recent first
+        return allSessions.sort((a, b) => b.modified.getTime() - a.modified.getTime());
       }),
 
     get: publicProcedure.input(getSessionInputSchema).query(({ input }) => {
       const instanceId = input.instanceId || DEFAULT_INSTANCE_ID;
       const sessionsDir = getSessionsDir(instanceId);
 
-      // Find the session file by ID
-      const sessionFiles = existsSync(sessionsDir)
-        ? readdirSync(sessionsDir).filter((f) => f.endsWith(".jsonl"))
-        : [];
-
-      const sessionFile = sessionFiles.find((f) => f.includes(input.sessionId));
-
-      if (!sessionFile) {
-        return [];
+      // Find the session file by ID - search both top-level and subdirectories
+      let sessionPath: string | null = null;
+      
+      if (existsSync(sessionsDir)) {
+        const entries = readdirSync(sessionsDir, { withFileTypes: true });
+        
+        // First check top-level .jsonl files
+        for (const entry of entries) {
+          if (entry.isFile() && entry.name.endsWith(".jsonl") && entry.name.includes(input.sessionId)) {
+            sessionPath = join(sessionsDir, entry.name);
+            break;
+          }
+        }
+        
+        // If not found, check subdirectories (for external sessions like telegram)
+        if (!sessionPath) {
+          for (const entry of entries) {
+            if (entry.isDirectory()) {
+              const subDir = join(sessionsDir, entry.name);
+              const subFiles = readdirSync(subDir).filter((f) => f.endsWith(".jsonl"));
+              const match = subFiles.find((f) => f.includes(input.sessionId));
+              if (match) {
+                sessionPath = join(subDir, match);
+                break;
+              }
+            }
+          }
+        }
       }
 
-      const sessionPath = join(sessionsDir, sessionFile);
+      if (!sessionPath) {
+        return [];
+      }
       const manager = SessionManager.open(sessionPath, sessionsDir);
       const entries = manager.getEntries();
 
@@ -268,17 +312,29 @@ export const appRouter = router({
         const instanceId = input.instanceId || DEFAULT_INSTANCE_ID;
         const sessionsDir = getSessionsDir(instanceId);
 
-        // Find and delete the session file by ID
+        // Find and delete the session file by ID - search both top-level and subdirectories
         if (existsSync(sessionsDir)) {
-          const sessionFiles = readdirSync(sessionsDir).filter((f) =>
-            f.endsWith(".jsonl"),
-          );
-          const sessionFile = sessionFiles.find((f) =>
-            f.includes(input.sessionId),
-          );
-
-          if (sessionFile) {
-            rmSync(join(sessionsDir, sessionFile));
+          const entries = readdirSync(sessionsDir, { withFileTypes: true });
+          
+          // Check top-level files
+          for (const entry of entries) {
+            if (entry.isFile() && entry.name.endsWith(".jsonl") && entry.name.includes(input.sessionId)) {
+              rmSync(join(sessionsDir, entry.name));
+              return { success: true };
+            }
+          }
+          
+          // Check subdirectories
+          for (const entry of entries) {
+            if (entry.isDirectory()) {
+              const subDir = join(sessionsDir, entry.name);
+              const subFiles = readdirSync(subDir).filter((f) => f.endsWith(".jsonl"));
+              const match = subFiles.find((f) => f.includes(input.sessionId));
+              if (match) {
+                rmSync(join(subDir, match));
+                return { success: true };
+              }
+            }
           }
         }
 
@@ -342,6 +398,44 @@ export const appRouter = router({
         if (plugin) {
           plugin.enabled = input.enabled;
         }
+
+        writeFileSync(pluginsPath, JSON.stringify(pluginsConfig, null, 2));
+
+        return pluginsConfig;
+      }),
+
+    updateTranscription: publicProcedure
+      .input(updateTranscriptionInputSchema)
+      .mutation(({ input }): PluginsConfig => {
+        const pluginsPath = join(config.dataDir, "plugins.json");
+
+        let pluginsConfig: PluginsConfig = { plugins: {} };
+
+        if (existsSync(pluginsPath)) {
+          const content = readFileSync(pluginsPath, "utf-8");
+          pluginsConfig = JSON.parse(content) as PluginsConfig;
+        }
+
+        pluginsConfig.transcription = input;
+
+        writeFileSync(pluginsPath, JSON.stringify(pluginsConfig, null, 2));
+
+        return pluginsConfig;
+      }),
+
+    updateTTS: publicProcedure
+      .input(updateTTSInputSchema)
+      .mutation(({ input }): PluginsConfig => {
+        const pluginsPath = join(config.dataDir, "plugins.json");
+
+        let pluginsConfig: PluginsConfig = { plugins: {} };
+
+        if (existsSync(pluginsPath)) {
+          const content = readFileSync(pluginsPath, "utf-8");
+          pluginsConfig = JSON.parse(content) as PluginsConfig;
+        }
+
+        pluginsConfig.tts = input;
 
         writeFileSync(pluginsPath, JSON.stringify(pluginsConfig, null, 2));
 

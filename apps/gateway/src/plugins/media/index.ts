@@ -7,3 +7,8 @@ export {
   type TranscriptionConfig,
   type TranscriptionResult,
 } from "./transcription/index.js";
+export {
+  ttsService,
+  type TTSConfig,
+  type TTSResult,
+} from "./tts/index.js";

@@ -5,7 +5,7 @@ import { join } from "path";
 import { config } from "../lib/config.js";
 import { logger } from "../lib/logger.js";
 import { eventBus } from "./event-bus.js";
-import { transcriptionService } from "./media/index.js";
+import { transcriptionService, ttsService } from "./media/index.js";
 import type { MessagePlugin, PluginsConfig, PluginConfig } from "./types.js";
 
 const ENV_VAR_PATTERN = /\$\{(\w+)\}/g;
@@ -14,21 +14,27 @@ function resolveEnvVars<T>(value: T): T {
   if (typeof value === "string") {
     return value.replace(ENV_VAR_PATTERN, (_, key) => {
       const envValue = process.env[key];
+
       if (envValue === undefined) {
         logger.warn({ key }, "Environment variable not found");
+
         return "";
       }
+
       return envValue;
     }) as T;
   }
+
   if (Array.isArray(value)) {
     return value.map(resolveEnvVars) as T;
   }
+
   if (typeof value === "object" && value !== null) {
     return Object.fromEntries(
-      Object.entries(value).map(([k, v]) => [k, resolveEnvVars(v)])
+      Object.entries(value).map(([k, v]) => [k, resolveEnvVars(v)]),
     ) as T;
   }
+
   return value;
 }
 
@@ -42,9 +48,14 @@ class PluginRegistry {
 
   async loadFromConfig(): Promise<void> {
     if (!existsSync(this.configPath)) {
-      logger.info({ path: this.configPath }, "No plugins config found, using defaults");
+      logger.info(
+        { path: this.configPath },
+        "No plugins config found, using defaults",
+      );
+
       // Still initialize transcription with defaults
       await transcriptionService.initialize();
+
       return;
     }
 
@@ -59,6 +70,12 @@ class PluginRegistry {
       }
       await transcriptionService.initialize();
 
+      // Initialize TTS service if configured
+      if (pluginsConfig.tts) {
+        ttsService.configure(pluginsConfig.tts);
+      }
+      await ttsService.initialize();
+
       for (const [id, settings] of Object.entries(pluginsConfig.plugins)) {
         if (!settings.enabled) {
           logger.debug({ pluginId: id }, "Plugin disabled, skipping");
@@ -68,7 +85,10 @@ class PluginRegistry {
         await this.loadPlugin(id, settings);
       }
     } catch (error) {
-      logger.error({ error, path: this.configPath }, "Failed to load plugins config");
+      logger.error(
+        { error, path: this.configPath },
+        "Failed to load plugins config",
+      );
       throw error;
     }
   }
@@ -114,6 +134,9 @@ class PluginRegistry {
 
     // Shutdown transcription service
     await transcriptionService.shutdown();
+
+    // Shutdown TTS service
+    await ttsService.shutdown();
   }
 
   get(id: string): MessagePlugin | undefined {

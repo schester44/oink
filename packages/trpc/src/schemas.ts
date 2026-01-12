@@ -88,14 +88,55 @@ export const pluginConfigSchema = z
   })
   .catchall(z.any());
 
+// Transcription config schema
+export const transcriptionConfigSchema = z.object({
+  provider: z.enum(["local-whisper", "openai-whisper", "auto"]),
+  localWhisper: z.object({
+    modelPath: z.string().optional(),
+    modelSize: z.enum(["tiny", "tiny.en", "base", "base.en", "small", "small.en", "medium", "medium.en", "large"]).optional(),
+    language: z.string().optional(),
+    threads: z.number().optional(),
+  }).optional(),
+  openaiWhisper: z.object({
+    apiKey: z.string().optional(),
+    model: z.string().optional(),
+  }).optional(),
+}).optional();
+
+// TTS config schema
+export const ttsConfigSchema = z.object({
+  enabled: z.boolean(),
+  provider: z.enum(["elevenlabs", "openai", "auto"]),
+  voiceReplyOnly: z.boolean().optional(),
+  elevenlabs: z.object({
+    apiKey: z.string().optional(),
+    voiceId: z.string().optional(),
+    modelId: z.string().optional(),
+    stability: z.number().optional(),
+    similarityBoost: z.number().optional(),
+  }).optional(),
+  openai: z.object({
+    apiKey: z.string().optional(),
+    voice: z.enum(["alloy", "echo", "fable", "onyx", "nova", "shimmer"]).optional(),
+    model: z.enum(["tts-1", "tts-1-hd"]).optional(),
+    speed: z.number().optional(),
+  }).optional(),
+}).optional();
+
 export const pluginsConfigSchema = z.object({
   plugins: z.record(z.string(), pluginConfigSchema),
+  transcription: transcriptionConfigSchema,
+  tts: ttsConfigSchema,
 });
 
 export const updatePluginInputSchema = z.object({
   pluginId: z.string(),
   enabled: z.boolean(),
 });
+
+export const updateTranscriptionInputSchema = transcriptionConfigSchema;
+
+export const updateTTSInputSchema = ttsConfigSchema;
 
 // Type exports
 export type Instance = z.infer<typeof instanceSchema>;
@@ -117,3 +158,7 @@ export type UpdateSettingsInput = z.infer<typeof updateSettingsInputSchema>;
 export type PluginConfig = z.infer<typeof pluginConfigSchema>;
 export type PluginsConfig = z.infer<typeof pluginsConfigSchema>;
 export type UpdatePluginInput = z.infer<typeof updatePluginInputSchema>;
+export type TranscriptionConfig = z.infer<typeof transcriptionConfigSchema>;
+export type TTSConfig = z.infer<typeof ttsConfigSchema>;
+export type UpdateTranscriptionInput = z.infer<typeof updateTranscriptionInputSchema>;
+export type UpdateTTSInput = z.infer<typeof updateTTSInputSchema>;

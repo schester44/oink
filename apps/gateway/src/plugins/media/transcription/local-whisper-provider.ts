@@ -77,13 +77,15 @@ export class LocalWhisperProvider implements TranscriptionProvider {
 
     // Check/download model
     if (!existsSync(this.modelPath)) {
-      if (MODEL_URLS[this.modelSize]) {
+      const modelUrl = MODEL_URLS[this.modelSize];
+
+      if (modelUrl) {
         logger.info(
           { modelSize: this.modelSize, path: this.modelPath },
           "Downloading Whisper model...",
         );
 
-        await this.downloadModel(MODEL_URLS[this.modelSize], this.modelPath);
+        await this.downloadModel(modelUrl, this.modelPath);
       } else {
         logger.warn({ modelPath: this.modelPath }, "Whisper model not found");
 
@@ -310,6 +312,9 @@ function parseTimestamp(ts: string): number {
   const [, h, m, s, ms] = match;
 
   return (
-    parseInt(h) * 3600 + parseInt(m) * 60 + parseInt(s) + parseInt(ms) / 1000
+    parseInt(h!) * 3600 +
+    parseInt(m!) * 60 +
+    parseInt(s!) +
+    parseInt(ms!) / 1000
   );
 }

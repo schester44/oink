@@ -8,11 +8,13 @@ class TypedEventEmitter<T extends Record<string, any>> {
 
   on<K extends keyof T>(event: K, listener: (data: T[K]) => void): this {
     this.emitter.on(event as string, listener);
+
     return this;
   }
 
   off<K extends keyof T>(event: K, listener: (data: T[K]) => void): this {
     this.emitter.off(event as string, listener);
+
     return this;
   }
 
@@ -22,11 +24,13 @@ class TypedEventEmitter<T extends Record<string, any>> {
 
   once<K extends keyof T>(event: K, listener: (data: T[K]) => void): this {
     this.emitter.once(event as string, listener);
+
     return this;
   }
 
   removeAllListeners<K extends keyof T>(event?: K): this {
     this.emitter.removeAllListeners(event as string);
+
     return this;
   }
 }
