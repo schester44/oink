@@ -15,10 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  MessageContent,
-  hasVisibleContent,
-} from "./-components/message-content";
+import { VirtualizedMessageList } from "./-components/virtualized-message-list";
 import {
   getShowToolCallsServerFn,
   setShowToolCallsServerFn,
@@ -222,18 +219,8 @@ function ChatPage() {
     };
   }, [transport, instanceId, sessionId, setMessages, navigate]);
 
-  const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const isLoading = status === "streaming" || status === "submitted";
-
-  // Check if the last assistant message has any text content yet
-  const lastMessage = messages[messages.length - 1];
-  const lastAssistantHasContent =
-    lastMessage?.role === "assistant" &&
-    lastMessage.parts?.some(
-      (p: { type: string; text?: string }) => p.type === "text" && p.text,
-    );
-  const showLoadingIndicator = isLoading && !lastAssistantHasContent;
 
   // Load existing session messages
   useEffect(() => {
@@ -257,12 +244,6 @@ function ChatPage() {
       setIsInitialLoad(false);
     }
   }, [sessionId, instanceId, setMessages]);
-
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }, [messages]);
 
   // Reset textarea height when input is cleared
   useEffect(() => {
@@ -304,7 +285,7 @@ function ChatPage() {
     // Clear sessionId - backend will create a new one and send it back
     navigate({
       to: "/chat",
-      search: { instance: instanceId },
+      search: { instance: instanceId, sessionId: undefined },
     });
   };
 
@@ -422,86 +403,27 @@ function ChatPage() {
 
       <main className="flex-1 overflow-hidden">
         <div className="flex h-full flex-col">
-          <div ref={scrollRef} className="flex-1 overflow-y-auto p-4">
-            {messages.length === 0 && !isInitialLoad ? (
-              <div className="flex h-full flex-col items-center justify-center text-center">
-                <span className="text-6xl mb-4">🐷</span>
-                <h2 className="text-xl font-semibold">Hey there!</h2>
-                <p className="text-muted-foreground mt-2 max-w-md">
-                  I'm your personal assistant. Ask me anything, set reminders,
-                  or just chat.
-                </p>
-              </div>
-            ) : messages.length > 0 ? (
-              <div className="space-y-4 max-w-3xl mx-auto">
-                {messages
-                  .filter(
-                    (message) =>
-                      message.role === "user" ||
-                      hasVisibleContent(message, showToolCalls),
-                  )
-                  .map((message) => (
-                    <div
-                      key={message.id}
-                      className={`flex gap-3 ${message.role === "user" ? "flex-row-reverse" : ""}`}
-                    >
-                      <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center text-sm shrink-0">
-                        {message.role === "user" ? "You" : "🐷"}
-                      </div>
-                      <div
-                        className={`rounded-lg px-4 py-2 max-w-[80%] ${
-                          message.role === "user"
-                            ? "bg-primary text-primary-foreground"
-                            : "bg-muted"
-                        }`}
-                      >
-                        <MessageContent
-                          message={message}
-                          showToolCalls={showToolCalls}
-                        />
-                        {message.role === "assistant" &&
-                          message.id === lastMessage?.id &&
-                          showStreamingDelay && (
-                            <span className="inline-flex text-muted-foreground ml-1">
-                              <span className="animate-ellipsis-1">.</span>
-                              <span className="animate-ellipsis-2">.</span>
-                              <span className="animate-ellipsis-3">.</span>
-                            </span>
-                          )}
-                      </div>
-                    </div>
-                  ))}
-                {showLoadingIndicator && (
-                  <div className="flex gap-3">
-                    <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center text-sm">
-                      🐷
-                    </div>
-                    <div className="bg-muted rounded-lg px-4 py-2">
-                      <div className="flex gap-1">
-                        <span className="animate-bounce">.</span>
-                        <span
-                          className="animate-bounce"
-                          style={{ animationDelay: "0.1s" }}
-                        >
-                          .
-                        </span>
-                        <span
-                          className="animate-bounce"
-                          style={{ animationDelay: "0.2s" }}
-                        >
-                          .
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="flex h-full items-center justify-center">
-                <span className="text-6xl animate-bounce">🐽</span>
-              </div>
-            )}
-          </div>
+          {messages.length === 0 && !isInitialLoad ? (
+            <div className="flex-1 flex flex-col items-center justify-center text-center p-4">
+              <span className="text-6xl mb-4">🐷</span>
+              <h2 className="text-xl font-semibold">Hey there!</h2>
+              <p className="text-muted-foreground mt-2 max-w-md">
+                I'm your personal assistant. Ask me anything, set reminders,
+                or just chat.
+              </p>
+            </div>
+          ) : messages.length > 0 ? (
+            <VirtualizedMessageList
+              messages={messages}
+              showToolCalls={showToolCalls}
+              isLoading={isLoading}
+              showStreamingDelay={showStreamingDelay}
+            />
+          ) : (
+            <div className="flex-1 flex items-center justify-center">
+              <span className="text-6xl animate-bounce">🐽</span>
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="border-t p-4">
             <div className="flex flex-col gap-1 max-w-3xl mx-auto">
