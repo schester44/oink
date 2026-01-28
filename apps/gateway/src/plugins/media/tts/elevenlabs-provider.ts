@@ -40,7 +40,7 @@ export class ElevenLabsProvider implements TTSProvider {
 
   async initialize(): Promise<void> {
     if (!this.apiKey) {
-      logger.warn("ElevenLabs provider: ELEVENLABS_API_KEY not set");
+      logger.error("ElevenLabs TTS provider unavailable: ELEVENLABS_API_KEY not set in environment");
       return;
     }
 

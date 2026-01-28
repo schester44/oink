@@ -4,13 +4,17 @@ import type { Bot, Context } from "grammy";
 import { v4 as uuid } from "uuid";
 import { eventBus } from "../../event-bus.js";
 import { logger } from "../../../lib/logger.js";
-import type { NormalizedMessage, MessageContent } from "../../types.js";
+import type { NormalizedMessage, MessageContent, ChatMetadata } from "../../types.js";
 import type { TelegramAdapterConfig } from "./types.js";
 import { handlePhoto, handleVoice, handleAudio, handleDocument } from "./media.js";
 
 const PLUGIN_ID = "telegram";
 
-function buildSessionId(chatId: number): string {
+function buildSessionId(chatId: number, topicId?: number): string {
+  // If message is in a topic/thread, include it in the session ID for isolation
+  if (topicId) {
+    return `telegram:${chatId}:topic:${topicId}`;
+  }
   return `telegram:${chatId}`;
 }
 
@@ -20,6 +24,26 @@ function extractSender(ctx: Context): { id: string; name?: string; username?: st
     id: String(from?.id || "unknown"),
     name: from?.first_name,
     username: from?.username,
+  };
+}
+
+function extractChatMetadata(ctx: Context): ChatMetadata {
+  const chat = ctx.message?.chat;
+  const message = ctx.message;
+  const chatType = chat?.type || "private";
+  
+  // Extract topic/thread info if present
+  const topicId = message && "message_thread_id" in message 
+    ? (message.message_thread_id as number) 
+    : undefined;
+  
+  return {
+    type: chatType as ChatMetadata["type"],
+    title: chat && "title" in chat ? chat.title : undefined,
+    platform: "telegram",
+    topicId,
+    // Note: Telegram doesn't include topic name in message updates
+    // Would need to call getForumTopicIconStickers or cache from forum_topic_created events
   };
 }
 
@@ -77,17 +101,21 @@ async function processMessage(
     const hasVoice = ("voice" in message && !!message.voice) || 
                      ("audio" in message && !!message.audio);
 
+    // Extract chat metadata (includes topic info)
+    const chatMetadata = extractChatMetadata(ctx);
+
     const normalized: NormalizedMessage = {
       id: uuid(),
       pluginId: PLUGIN_ID,
       chatId,
-      sessionId: buildSessionId(message.chat.id),
+      sessionId: buildSessionId(message.chat.id, chatMetadata.topicId),
       instanceId: config.instanceId,
       sender: extractSender(ctx),
       content,
       timestamp: new Date(message.date * 1000),
       replyTo: message.reply_to_message ? String(message.reply_to_message.message_id) : undefined,
       hasVoice,
+      chatMetadata,
     };
 
     logger.debug(

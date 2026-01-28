@@ -30,6 +30,151 @@ import { readSettings } from "../lib/settings.js";
 import { recordLLMRequest } from "../lib/telemetry/index.js";
 import { initializeBrain } from "../brain/brain.js";
 import { createCronToolDefinition } from "./tools/cron-pi.js";
+import { createResponseModeToolDefinition, getResponseModePreference, type ResponseMode } from "./tools/response-mode.js";
+
+// Re-export for use by chat-handler
+export { getResponseModePreference, type ResponseMode };
+
+// Time gap constants
+const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Get the timestamp of the last user message in the session.
+ * Returns undefined if no user messages exist.
+ */
+function getLastUserMessageTimestamp(session: AgentSession): number | undefined {
+  const messages = session.messages;
+  
+  // Find the last user message (iterate backwards)
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const msg = messages[i];
+    if (msg && msg.role === "user" && "timestamp" in msg && typeof msg.timestamp === "number") {
+      return msg.timestamp;
+    }
+  }
+  
+  return undefined;
+}
+
+/**
+ * Format a time duration into a human-readable string.
+ */
+function formatTimeDuration(ms: number): string {
+  const days = Math.floor(ms / ONE_DAY_MS);
+  const hours = Math.floor((ms % ONE_DAY_MS) / (60 * 60 * 1000));
+  
+  if (days >= 7) {
+    const weeks = Math.floor(days / 7);
+    const remainingDays = days % 7;
+    if (remainingDays === 0) {
+      return weeks === 1 ? "1 week" : `${weeks} weeks`;
+    }
+    return `${weeks} week${weeks > 1 ? "s" : ""} and ${remainingDays} day${remainingDays > 1 ? "s" : ""}`;
+  }
+  
+  if (days > 0) {
+    if (hours === 0) {
+      return days === 1 ? "1 day" : `${days} days`;
+    }
+    return `${days} day${days > 1 ? "s" : ""} and ${hours} hour${hours > 1 ? "s" : ""}`;
+  }
+  
+  return `${hours} hour${hours > 1 ? "s" : ""}`;
+}
+
+/**
+ * Build a time gap indicator if significant time has passed since last message.
+ * Returns undefined if less than 1 day has passed.
+ */
+function buildTimeGapIndicator(
+  lastMessageTimestamp: number | undefined,
+  currentTimestamp: number,
+): string | undefined {
+  if (lastMessageTimestamp === undefined) {
+    return undefined;
+  }
+  
+  const timeDiff = currentTimestamp - lastMessageTimestamp;
+  
+  if (timeDiff < ONE_DAY_MS) {
+    return undefined;
+  }
+  
+  const duration = formatTimeDuration(timeDiff);
+  const lastDate = new Date(lastMessageTimestamp);
+  const formattedDate = lastDate.toLocaleDateString("en-US", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+  
+  return `[Note: It has been ${duration} since our last conversation (${formattedDate}). The user is returning after some time away.]`;
+}
+
+interface ChatContextOptions {
+  chatMetadata?: ChatMetadata;
+  sender?: { name?: string; username?: string };
+  /** Whether the user sent a voice message */
+  userSentVoice?: boolean;
+  /** Whether the response will be converted to speech */
+  responseWillBeSpoken?: boolean;
+}
+
+/**
+ * Build a chat context indicator for platform-specific metadata.
+ * Returns undefined if no relevant metadata is present.
+ */
+function buildChatContextIndicator(options: ChatContextOptions): string | undefined {
+  const { chatMetadata, sender, userSentVoice, responseWillBeSpoken } = options;
+  
+  // If no metadata and no voice context, nothing to add
+  if (!chatMetadata && !userSentVoice && !responseWillBeSpoken) {
+    return undefined;
+  }
+
+  const parts: string[] = [];
+  
+  if (chatMetadata) {
+    // Platform and chat type
+    const platform = chatMetadata.platform.charAt(0).toUpperCase() + chatMetadata.platform.slice(1);
+    
+    if (chatMetadata.type === "private") {
+      parts.push(`${platform} DM`);
+    } else if (chatMetadata.title) {
+      parts.push(`${platform} ${chatMetadata.type} "${chatMetadata.title}"`);
+    } else {
+      parts.push(`${platform} ${chatMetadata.type}`);
+    }
+    
+    // Topic info (for forum topics in supergroups)
+    if (chatMetadata.topicId) {
+      if (chatMetadata.topicName) {
+        parts.push(`topic: "${chatMetadata.topicName}"`);
+      } else {
+        parts.push(`topic #${chatMetadata.topicId}`);
+      }
+    }
+    
+    // Sender info (useful in groups)
+    if (sender?.name || sender?.username) {
+      const senderStr = sender.name || `@${sender.username}`;
+      parts.push(`from: ${senderStr}`);
+    }
+  }
+  
+  // Voice context
+  if (userSentVoice) {
+    parts.push("user sent voice message");
+  }
+  if (responseWillBeSpoken) {
+    parts.push("response will be spoken aloud via TTS - keep it conversational and avoid markdown/formatting");
+  }
+  
+  return parts.length > 0 ? `[${parts.join(" | ")}]` : undefined;
+}
 
 // Re-export event types for consumers
 export type { AgentSessionEvent };
@@ -56,6 +201,20 @@ export type StreamChunk =
   | { type: "finish"; finishReason: string }
   | { type: "error"; errorText: string };
 
+/** Metadata about the chat context */
+export interface ChatMetadata {
+  /** Chat type: private DM, group, supergroup, channel */
+  type: "private" | "group" | "supergroup" | "channel";
+  /** Chat/group title (for groups/channels) */
+  title?: string;
+  /** Platform-specific (e.g., "telegram", "discord") */
+  platform: string;
+  /** Topic/thread ID (for forum topics in supergroups) */
+  topicId?: number;
+  /** Topic name (if available) */
+  topicName?: string;
+}
+
 export interface ChatRequest {
   sessionId?: string;
   instanceId: string;
@@ -73,6 +232,17 @@ export interface ChatRequest {
   };
   sourceChannel?: string;
   chatId?: string;
+  /** Metadata about the chat context (for Telegram, Discord, etc.) */
+  chatMetadata?: ChatMetadata;
+  /** Info about who sent the message */
+  sender?: {
+    name?: string;
+    username?: string;
+  };
+  /** Whether the user sent a voice message */
+  userSentVoice?: boolean;
+  /** Whether the response will be converted to speech */
+  responseWillBeSpoken?: boolean;
 }
 
 interface SessionInfo {
@@ -258,6 +428,11 @@ async function getOrCreateSession(
     chatId,
   });
 
+  // Create response mode tool (uses the external session ID for preference storage)
+  const responseModeTool = createResponseModeToolDefinition({
+    sessionId: requestedSessionId || sessionManager.getSessionId(),
+  });
+
   // Discover skills from brain/skills and system-skills directories
   const brainSkillsDir = join(workspaceDir, "skills");
   const { skills: brainSkills } = discoverSkills(
@@ -275,6 +450,17 @@ async function getOrCreateSession(
     "Discovered skills",
   );
 
+  // Create custom tools
+  const customTools = [
+    cronTool as unknown as ToolDefinition,
+    responseModeTool as unknown as ToolDefinition,
+  ];
+
+  logger.debug(
+    { customToolNames: customTools.map(t => t.name) },
+    "Registering custom tools"
+  );
+
   // Create agent session with full control
   const { session } = await createAgentSession({
     cwd: workspaceDir,
@@ -284,7 +470,7 @@ async function getOrCreateSession(
     modelRegistry,
     systemPrompt,
     tools: createCodingTools(workspaceDir),
-    customTools: [cronTool as unknown as ToolDefinition],
+    customTools,
     extensions: [],
     skills,
     contextFiles: [],
@@ -324,7 +510,7 @@ async function getOrCreateSession(
 export async function* streamChat(
   request: ChatRequest,
 ): AsyncGenerator<StreamChunk> {
-  const { sessionId, instanceId, message, sourceChannel, chatId } = request;
+  const { sessionId, instanceId, message, sourceChannel, chatId, chatMetadata, sender } = request;
 
   try {
     const session = await getOrCreateSession(
@@ -334,8 +520,42 @@ export async function* streamChat(
       chatId,
     );
 
-    // Build prompt content
-    const promptText = message.content;
+    // Build context indicators
+    const lastUserTimestamp = getLastUserMessageTimestamp(session);
+    const currentTimestamp = Date.now();
+    const timeGapIndicator = buildTimeGapIndicator(lastUserTimestamp, currentTimestamp);
+    const chatContextIndicator = buildChatContextIndicator({
+      chatMetadata,
+      sender,
+      userSentVoice: request.userSentVoice,
+      responseWillBeSpoken: request.responseWillBeSpoken,
+    });
+    
+    // Build prompt content, prepending context indicators if present
+    const contextParts: string[] = [];
+    if (chatContextIndicator) {
+      contextParts.push(chatContextIndicator);
+    }
+    if (timeGapIndicator) {
+      contextParts.push(timeGapIndicator);
+    }
+    
+    const promptText = contextParts.length > 0
+      ? `${contextParts.join("\n")}\n\n${message.content}`
+      : message.content;
+    
+    if (contextParts.length > 0) {
+      logger.debug(
+        { 
+          chatContextIndicator,
+          timeGapIndicator,
+          lastUserTimestamp, 
+          currentTimestamp, 
+          daysSince: lastUserTimestamp ? Math.floor((currentTimestamp - lastUserTimestamp) / ONE_DAY_MS) : null 
+        },
+        "Context indicators added to prompt",
+      );
+    }
 
     // Handle multipart messages (images)
     const images: ImageContent[] = [];

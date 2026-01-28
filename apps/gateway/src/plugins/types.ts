@@ -14,6 +14,20 @@ export interface MessageSender {
   username?: string;
 }
 
+/** Metadata about the chat/channel context */
+export interface ChatMetadata {
+  /** Chat type: private DM, group, supergroup, channel */
+  type: "private" | "group" | "supergroup" | "channel";
+  /** Chat/group title (for groups/channels) */
+  title?: string;
+  /** Platform-specific (e.g., "telegram", "discord") */
+  platform: string;
+  /** Topic/thread ID (for forum topics in supergroups) */
+  topicId?: number;
+  /** Topic name (if available) */
+  topicName?: string;
+}
+
 export interface NormalizedMessage {
   id: string;
   pluginId: string;
@@ -26,6 +40,8 @@ export interface NormalizedMessage {
   replyTo?: string;
   /** True if the original message included voice/audio */
   hasVoice?: boolean;
+  /** Metadata about the chat context (platform, type, title) */
+  chatMetadata?: ChatMetadata;
 }
 
 // === Outgoing Message Types ===
@@ -46,6 +62,8 @@ export interface OutgoingMessage {
   rawChunk?: unknown;
   /** True if we should respond with voice (user sent voice or TTS always enabled) */
   respondWithVoice?: boolean;
+  /** Topic/thread ID for platforms that support it (e.g., Telegram forum topics) */
+  topicId?: number;
 }
 
 // === Notification Types ===

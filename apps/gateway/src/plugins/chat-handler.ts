@@ -2,7 +2,7 @@
 
 import { readFile } from "fs/promises";
 import { eventBus } from "./event-bus.js";
-import { streamChat, type StreamChunk, type ChatRequest } from "../agent/agent-service.js";
+import { streamChat, type StreamChunk, type ChatRequest, getResponseModePreference } from "../agent/agent-service.js";
 import { logger } from "../lib/logger.js";
 import { ttsService } from "./media/index.js";
 import type { NormalizedMessage, MessageContent } from "./types.js";
@@ -73,9 +73,52 @@ async function handleIncoming(message: NormalizedMessage): Promise<void> {
     "Processing incoming message",
   );
 
+  // Check user's response mode preference for this session
+  const responseMode = getResponseModePreference(message.sessionId);
+  
+  // Check for one-time voice request phrases in the message
+  const textForDetection = message.content
+    .filter((c): c is { type: "text"; text: string } => c.type === "text")
+    .map((c) => c.text)
+    .join(" ")
+    .toLowerCase();
+  
+  const voiceRequestPhrases = [
+    "voice memo",
+    "audio response", 
+    "respond with audio",
+    "respond in audio",
+    "reply with audio",
+    "reply in audio",
+    "say it out loud",
+    "tell me in audio",
+    "speak your response",
+    "use voice",
+    "use audio",
+    "as audio",
+    "as a voice",
+    "in voice",
+  ];
+  
+  const requestedVoiceThisMessage = ttsService.isEnabled() && 
+    voiceRequestPhrases.some(phrase => textForDetection.includes(phrase));
+  
   // Determine if we should respond with voice
-  const shouldRespondWithVoice = ttsService.isEnabled() && 
-    (!ttsService.isVoiceReplyOnly() || message.hasVoice);
+  let shouldRespondWithVoice: boolean;
+  if (requestedVoiceThisMessage) {
+    // One-time voice request for this message
+    shouldRespondWithVoice = true;
+  } else if (responseMode === "voice") {
+    // User explicitly requested voice responses via tool
+    shouldRespondWithVoice = ttsService.isEnabled();
+  } else if (responseMode === "text") {
+    // User explicitly requested text responses
+    shouldRespondWithVoice = false;
+  } else {
+    // Auto mode: use default behavior (voice replies to voice if enabled)
+    shouldRespondWithVoice = ttsService.isEnabled() && 
+      (!ttsService.isVoiceReplyOnly() || message.hasVoice);
+  }
 
   // Build multimodal parts (text + images) for vision support
   const parts = await buildChatMessageParts(message.content);
@@ -97,6 +140,10 @@ async function handleIncoming(message: NormalizedMessage): Promise<void> {
     },
     sourceChannel: message.pluginId,
     chatId: message.chatId,
+    chatMetadata: message.chatMetadata,
+    sender: message.sender,
+    userSentVoice: message.hasVoice,
+    responseWillBeSpoken: shouldRespondWithVoice,
   };
 
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
@@ -125,6 +172,7 @@ async function handleIncoming(message: NormalizedMessage): Promise<void> {
           isComplete: false,
           rawChunk: chunk,
           respondWithVoice: shouldRespondWithVoice,
+          topicId: message.chatMetadata?.topicId,
         });
 
         // On finish, emit complete message
@@ -138,6 +186,7 @@ async function handleIncoming(message: NormalizedMessage): Promise<void> {
             isComplete: true,
             rawChunk: chunk,
             respondWithVoice: shouldRespondWithVoice,
+            topicId: message.chatMetadata?.topicId,
           });
         }
       }
@@ -172,6 +221,7 @@ async function handleIncoming(message: NormalizedMessage): Promise<void> {
         ],
         isStreaming: false,
         isComplete: true,
+        topicId: message.chatMetadata?.topicId,
       });
     }
   }

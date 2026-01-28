@@ -127,6 +127,7 @@ export function create(
         await bot.api.sendVoice(
           message.chatId,
           new InputFile(createReadStream(ttsResult.audioPath)),
+          { message_thread_id: message.topicId },
         );
         
         logger.debug({ chatId: message.chatId, audioPath: ttsResult.audioPath }, "Voice message sent");
@@ -145,17 +146,20 @@ export function create(
       for (const chunk of chunks) {
         await bot.api.sendMessage(message.chatId, chunk, {
           parse_mode: "MarkdownV2",
+          message_thread_id: message.topicId,
         });
       }
     } catch (error) {
       logger.error(
-        { error, chatId: message.chatId },
+        { error, chatId: message.chatId, topicId: message.topicId },
         "Failed to send Telegram message",
       );
 
       // Fallback: try sending without formatting
       try {
-        await bot.api.sendMessage(message.chatId, text);
+        await bot.api.sendMessage(message.chatId, text, {
+          message_thread_id: message.topicId,
+        });
       } catch (fallbackError) {
         logger.error(
           { error: fallbackError, chatId: message.chatId },

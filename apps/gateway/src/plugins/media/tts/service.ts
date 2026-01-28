@@ -91,7 +91,10 @@ class TTSService {
         "TTS provider selected",
       );
     } else if (this.config.enabled) {
-      logger.warn("TTS enabled but no provider available");
+      logger.error(
+        { provider: this.config.provider },
+        "TTS enabled but no provider available - check API key configuration (ELEVENLABS_API_KEY or OPENAI_API_KEY)",
+      );
     }
   }
 

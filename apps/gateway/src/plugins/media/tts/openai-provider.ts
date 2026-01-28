@@ -35,7 +35,7 @@ export class OpenAITTSProvider implements TTSProvider {
 
   async initialize(): Promise<void> {
     if (!this.apiKey) {
-      logger.warn("OpenAI TTS provider: OPENAI_API_KEY not set");
+      logger.error("OpenAI TTS provider unavailable: OPENAI_API_KEY not set in environment");
       return;
     }
 
