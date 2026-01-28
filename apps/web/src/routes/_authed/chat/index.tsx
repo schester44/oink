@@ -5,7 +5,7 @@ import {
   Link,
 } from "@tanstack/react-router";
 import { useChat } from "@ai-sdk/react";
-import { useRef, useState, useEffect, useMemo } from "react";
+import { useRef, useState, useEffect, useMemo, useDeferredValue } from "react";
 import { Bug, Send, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -166,13 +166,16 @@ function ChatPage() {
     transport.setSessionId(sessionId);
   }, [transport, instanceId, sessionId]);
 
-  const { messages, sendMessage, status, setMessages } = useChat({
+  const { messages: rawMessages, sendMessage, status, setMessages } = useChat({
     id: chatId,
     transport,
     onFinish: () => {
       getMetricsServerFn().then(setMetrics);
     },
   });
+
+  // Defer message updates so typing isn't blocked by re-renders
+  const messages = useDeferredValue(rawMessages);
 
   // Connect transport and set up scheduled task handler
   useEffect(() => {
